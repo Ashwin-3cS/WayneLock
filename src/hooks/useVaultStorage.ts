@@ -1,10 +1,11 @@
-// Core custom hook bridging Lit Protocol processing, FWSS, and VaultRegistry
+// Core custom hook bridging Lit Protocol processing, Synapse storage, and VaultRegistry
 import { useState } from 'react';
 import { ethers } from 'ethers';
 import { uploadVaultBlob, fetchVaultBlob } from '../utils/fwss';
 
 const VAULT_REGISTRY_ADDRESS = import.meta.env.VITE_VAULT_REGISTRY_ADDRESS;
 
+// VaultRegistry stores a JSON string: { pieceCid, serviceURL }
 export function useVaultStorage(provider: ethers.BrowserProvider | null) {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -19,17 +20,18 @@ export function useVaultStorage(provider: ethers.BrowserProvider | null) {
             const signer = await provider.getSigner();
             const userAddress = await signer.getAddress();
 
-            // 1. Upload the raw blob to FWSS S3
-            const fwssUri = await uploadVaultBlob(encryptedBlob, userAddress);
+            // 1. Upload the raw blob to Synapse warm storage
+            const { pieceCid, serviceURL } = await uploadVaultBlob(encryptedBlob, userAddress);
+            const synapseUri = JSON.stringify({ pieceCid, serviceURL });
 
             // 2. Transact with the VaultRegistry SC to store the URI
             const registryAbi = ["function setVault(string calldata uri) external"];
             const registryContract = new ethers.Contract(VAULT_REGISTRY_ADDRESS, registryAbi, signer);
 
-            const tx = await registryContract.setVault(fwssUri);
-            await tx.wait(); // Wait for confirmation on the FEVM
+            const tx = await registryContract.setVault(synapseUri);
+            await tx.wait();
 
-            return fwssUri;
+            return synapseUri;
         } catch (err: any) {
             setError(err.message);
             throw err;
@@ -48,16 +50,18 @@ export function useVaultStorage(provider: ethers.BrowserProvider | null) {
             const signer = await provider.getSigner();
             const userAddress = await signer.getAddress();
 
-            // 1. Query the contract for the user's URI
-            const registryAbi = ["function getVault(address user) external view returns (string memory)"];
+            // 1. Query the contract for the user's URI JSON
+            const registryAbi = ["function userVaults(address) external view returns (string memory)"];
             const registryContract = new ethers.Contract(VAULT_REGISTRY_ADDRESS, registryAbi, provider);
 
-            const fwssUri = await registryContract.getVault(userAddress);
+            const synapseUri = await registryContract.userVaults(userAddress);
+            if (!synapseUri || synapseUri === "") return null;
 
-            if (!fwssUri || fwssUri === "") return null;
+            // 2. Parse the stored JSON to extract pieceCid + serviceURL
+            const { pieceCid, serviceURL } = JSON.parse(synapseUri);
 
-            // 2. Fetch the actual blob data down from FWSS
-            const blob = await fetchVaultBlob(fwssUri);
+            // 3. Download the blob from Synapse warm storage
+            const blob = await fetchVaultBlob(pieceCid, serviceURL);
             return blob;
         } catch (err: any) {
             setError(err.message);

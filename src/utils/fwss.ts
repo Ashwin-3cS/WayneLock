@@ -1,58 +1,54 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+/**
+ * Vault storage layer using @filoz/synapse-core warm storage.
+ *
+ * This replaces the old AWS S3/FWSS shim. Encrypted vault blobs are uploaded
+ * as Filecoin Pieces to a registered warm storage provider automatically
+ * discovered from the on-chain Service Registry on Calibration Testnet.
+ *
+ * Real Contract Addresses (Calibration):
+ *   Filecoin Pay:       0x85e366Cf9DD2c0aE37E963d9556F5f4718d6417C
+ *   USDFC Token:        0xb3042734b608a1B16e9e86B374A3f3e389B4cDf0
+ *   Service Registry:   0x839e5c9988e4e9977d40708d0094103c0839Ac9D
+ */
+import * as piece from '@filoz/synapse-core/piece';
+import * as sp from '@filoz/synapse-core/sp';
+import { getPDPProvider } from '@filoz/synapse-core/sp-registry';
+import { publicClient } from './synapse';
 
-// Ensure environment variables are loaded or handle missing ones gracefully
-const s3Client = new S3Client({
-    endpoint: import.meta.env.VITE_FWSS_ENDPOINT || "https://s3.filebase.com", // Fallback if FWSS endpoint changes
-    region: "us-east-1",
-    credentials: {
-        accessKeyId: import.meta.env.VITE_FWSS_API_KEY || "dummy",
-        secretAccessKey: import.meta.env.VITE_FWSS_SECRET_KEY || "dummy"
-    }
-});
+/**
+ * Uploads an encrypted vault blob (Uint8Array) to a warm storage provider.
+ * Returns an object containing the pieceCid (for retrieval) and the serviceURL.
+ */
+export async function uploadVaultBlob(
+    encryptedBlob: Uint8Array,
+    _userAddress: string
+): Promise<{ pieceCid: string; serviceURL: string }> {
+    // 1. Pick first available warm-storage provider from the on-chain registry
+    const provider = await getPDPProvider(publicClient, { providerId: 2n });
+    const serviceURL = provider.pdp.serviceURL;
 
-const BUCKET_NAME = import.meta.env.VITE_FWSS_BUCKET || "plgenesis-vaults";
+    // 2. Calculate the Piece CID from the raw blob
+    const pieceCid = piece.calculate(encryptedBlob);
 
-export async function uploadVaultBlob(encryptedBlob: Uint8Array, userAddress: string): Promise<string> {
-    const objectKey = `vaults/${userAddress}.bin`;
+    // 3. Upload to the provider's HTTP API
+    await sp.uploadPiece({ data: encryptedBlob, pieceCid, serviceURL });
 
-    const command = new PutObjectCommand({
-        Bucket: BUCKET_NAME,
-        Key: objectKey,
-        Body: encryptedBlob,
-        ContentType: "application/octet-stream"
-    });
+    // 4. Poll until the provider confirms receipt
+    await sp.findPiece({ pieceCid, serviceURL, retry: true });
 
-    try {
-        await s3Client.send(command);
-        return `s3://${BUCKET_NAME}/${objectKey}`;
-    } catch (error) {
-        console.error("FWSS Upload Error:", error);
-        throw new Error("Failed to upload vault to FWSS");
-    }
+    return { pieceCid: pieceCid.toString(), serviceURL };
 }
 
-export async function fetchVaultBlob(uri: string): Promise<Uint8Array> {
-    // Parse s3://bucket/key URI
-    const urlPattern = /^s3:\/\/([^\/]+)\/(.+)$/;
-    const match = uri.match(urlPattern);
-    if (!match) throw new Error("Invalid FWSS URI format");
-
-    const [, bucket, key] = match;
-
-    const command = new GetObjectCommand({
-        Bucket: bucket,
-        Key: key
+/**
+ * Downloads a vault blob from the provider using a stored pieceCid.
+ */
+export async function fetchVaultBlob(
+    pieceCidStr: string,
+    serviceURL: string
+): Promise<Uint8Array> {
+    const data = await piece.downloadAndValidate({
+        url: `${serviceURL}/piece`,
+        expectedPieceCid: pieceCidStr,
     });
-
-    try {
-        const response = await s3Client.send(command);
-        if (!response.Body) throw new Error("Empty body returned from FWSS");
-
-        // Handle web stream response
-        const reader = response.Body.transformToByteArray();
-        return await reader;
-    } catch (error) {
-        console.error("FWSS Fetch Error:", error);
-        throw new Error("Failed to fetch vault from FWSS");
-    }
+    return data;
 }
