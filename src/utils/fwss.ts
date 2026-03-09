@@ -15,13 +15,15 @@ import * as sp from '@filoz/synapse-core/sp';
 import { getPDPProvider } from '@filoz/synapse-core/sp-registry';
 import { publicClient } from './synapse';
 
+import { createSynapseWalletClient } from './synapse';
+
 /**
  * Uploads an encrypted vault blob (Uint8Array) to a warm storage provider.
  * Returns an object containing the pieceCid (for retrieval) and the serviceURL.
  */
 export async function uploadVaultBlob(
     encryptedBlob: Uint8Array,
-    _userAddress: string
+    userAddress: string
 ): Promise<{ pieceCid: string; serviceURL: string }> {
     // 1. Pick first available warm-storage provider from the on-chain registry
     const provider = await getPDPProvider(publicClient, { providerId: 2n });
@@ -35,6 +37,22 @@ export async function uploadVaultBlob(
 
     // 4. Poll until the provider confirms receipt
     await sp.findPiece({ pieceCid, serviceURL, retry: true });
+
+    // 5. Create a data set and add the piece on-chain
+    if (!window.ethereum) throw new Error("Wallet required for on-chain storage");
+    const walletClient = createSynapseWalletClient(window.ethereum, userAddress as `0x${string}`);
+
+    const result = await sp.createDataSetAndAddPieces(walletClient as any, {
+        serviceURL,
+        payee: provider.payee,
+        cdn: false,
+        pieces: [{ pieceCid }],
+    });
+
+    // 6. Wait for the provider to confirm the transaction
+    await sp.waitForCreateDataSetAddPieces({
+        statusUrl: result.statusUrl,
+    });
 
     return { pieceCid: pieceCid.toString(), serviceURL };
 }
