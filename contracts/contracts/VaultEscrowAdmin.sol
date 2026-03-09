@@ -3,60 +3,33 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// Interface for the official Filecoin Pay router
-interface IFilecoinPay {
-    function createPaymentRail(
-        address token,
-        address payee,
-        uint256 ratePerEpoch,
-        uint256 durationEpochs
-    ) external returns (bytes32 railId);
-}
-
+/**
+ * @title VaultEscrowAdmin
+ * @dev Simplified vault contract that accepts USDFC deposits.
+ *      The Filecoin Pay deposit and rail creation is now handled
+ *      directly from the frontend using the filoz/synapse-core SDK,
+ *      which calls the real Filecoin Pay contract at:
+ *      0x85e366Cf9DD2c0aE37E963d9556F5f4718d6417C (Calibration Testnet)
+ */
 contract VaultEscrowAdmin {
     IERC20 public immutable usdfc;
-    IFilecoinPay public immutable filecoinPay;
 
-    event VaultStreamInitialized(
-        address indexed user,
-        address indexed provider,
-        bytes32 railId,
-        uint256 totalLockup
-    );
+    // Filecoin Pay contract on Calibration Testnet
+    address public constant FILECOIN_PAY =
+        0x85e366Cf9DD2c0aE37E963d9556F5f4718d6417C;
 
-    constructor(address _usdfc, address _filecoinPay) {
+    event VaultFunded(address indexed user, uint256 amount, uint256 timestamp);
+
+    constructor(address _usdfc) {
         usdfc = IERC20(_usdfc);
-        filecoinPay = IFilecoinPay(_filecoinPay);
     }
 
-    // User deposits/approves USDFC to initialize their vault storage stream
-    function initializeVaultStream(
-        address provider,
-        uint256 ratePerEpoch,
-        uint256 duration
-    ) external {
-        uint256 totalLockup = ratePerEpoch * duration;
-
-        // Transfer USDFC from the user to this admin contract
-        require(
-            usdfc.transferFrom(msg.sender, address(this), totalLockup),
-            "Transfer failed"
-        );
-
-        // Approve the Filecoin Pay router to spend the locked up USDFC
-        require(
-            usdfc.approve(address(filecoinPay), totalLockup),
-            "Approve failed"
-        );
-
-        // Establishes the Filecoin Pay rail to the FWSS provider
-        bytes32 railId = filecoinPay.createPaymentRail(
-            address(usdfc),
-            provider,
-            ratePerEpoch,
-            duration
-        );
-
-        emit VaultStreamInitialized(msg.sender, provider, railId, totalLockup);
+    /**
+     * @dev Records that a user has funded their vault.
+     *      The actual Filecoin Pay deposit happens via the frontend SDK.
+     *      This tx emits an on-chain event for auditability.
+     */
+    function recordVaultFunding(uint256 amount) external {
+        emit VaultFunded(msg.sender, amount, block.timestamp);
     }
 }

@@ -32,10 +32,9 @@ console.log("VaultRegistry deployed to:", vaultRegistryAddress);
 
 // 2. Deploy VaultEscrowAdmin
 const USDFC_ADDRESS = "0xb3042734b608a1B16e9e86B374A3f3e389B4cDf0";
-const FILECOIN_PAY_ROUTER = "0x000000000000000000000000000000000000dEaD"; // placeholder
 
 const VaultEscrowAdmin = await ethers.getContractFactory("VaultEscrowAdmin");
-const vaultEscrowAdmin = await VaultEscrowAdmin.deploy(USDFC_ADDRESS, FILECOIN_PAY_ROUTER);
+const vaultEscrowAdmin = await VaultEscrowAdmin.deploy(USDFC_ADDRESS);
 await vaultEscrowAdmin.waitForDeployment();
 const vaultEscrowAdminAddress = await vaultEscrowAdmin.getAddress();
 console.log("VaultEscrowAdmin deployed to:", vaultEscrowAdminAddress);
