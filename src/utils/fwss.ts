@@ -64,8 +64,9 @@ export async function fetchVaultBlob(
     pieceCidStr: string,
     serviceURL: string
 ): Promise<Uint8Array> {
+    // SP API expects: GET ${serviceURL}/piece/${pieceCid}
     const data = await piece.downloadAndValidate({
-        url: `${serviceURL}/piece`,
+        url: `${serviceURL}/piece/${pieceCidStr}`,
         expectedPieceCid: pieceCidStr,
     });
     return data;
