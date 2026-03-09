@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FundingUI } from './components/FundingUI';
 import { useVaultStorage } from './hooks/useVaultStorage';
 import { ethers } from 'ethers';
@@ -9,7 +9,12 @@ function App() {
   const [address, setAddress] = useState<string>('');
 
   // Custom hook initialized for friend's future use.
-  const { saveVault, loadVault, isProcessing, error } = useVaultStorage(provider);
+  const vaultStorageProps = useVaultStorage(provider);
+  // Expose to window for easy debugging/integration by friend
+  if (typeof window !== 'undefined') {
+    (window as any).vaultStorage = vaultStorageProps;
+  }
+  const { isProcessing, error } = vaultStorageProps;
 
   const connectWallet = async () => {
     if (window.ethereum) {

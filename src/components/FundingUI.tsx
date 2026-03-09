@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ethers } from 'ethers';
 
 const VAULT_ADMIN_ADDRESS = import.meta.env.VITE_VAULT_ADMIN_ADDRESS;
