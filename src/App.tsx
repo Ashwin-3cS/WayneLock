@@ -1,35 +1,51 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState } from 'react';
+import { FundingUI } from './components/FundingUI';
+import { useVaultStorage } from './hooks/useVaultStorage';
+import { ethers } from 'ethers';
+import './index.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [address, setAddress] = useState<string>('');
+
+  // Custom hook initialized for friend's future use.
+  const { saveVault, loadVault, isProcessing, error } = useVaultStorage(provider);
+
+  const connectWallet = async () => {
+    if (window.ethereum) {
+      const web3Provider = new ethers.BrowserProvider(window.ethereum as any);
+      setProvider(web3Provider);
+      const accounts = await web3Provider.send("eth_requestAccounts", []);
+      setAddress(accounts[0]);
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="popup-container">
+      <header>
+        <h1>Decentralized Vault</h1>
+        {!address ? (
+          <button onClick={connectWallet} className="connect-btn">Connect Wallet</button>
+        ) : (
+          <span className="address-badge">{address.substring(0, 6)}...{address.slice(-4)}</span>
+        )}
+      </header>
+
+      <main>
+        {/* User begins by funding their vault escrow for storage */}
+        <section className="funding-section">
+          <FundingUI />
+        </section>
+
+        {/* Lit Protocol Integration placeholder for the friend */}
+        <section className="vault-actions">
+          <p><em>Lit Protocol Encryption/Decryption UI goes here</em></p>
+          {error && <p className="error">{error}</p>}
+          {isProcessing && <p>Processing on FWSS/FEVM...</p>}
+        </section>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
