@@ -1,0 +1,35 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_21-effb8a9ad22d22d21e49bdfd482456510e5e9abd",
+  "solcVersion": "0.8.21",
+  "solcLongVersion": "0.8.21+commit.d9974bed",
+  "userSourceNameMap": {
+    "contracts/Lock.sol": "project/contracts/Lock.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "shanghai",
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/Lock.sol": {
+        "content": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.21;\n\ncontract Lock {\n    uint public unlockTime;\n\n    constructor(uint _unlockTime) {\n        unlockTime = _unlockTime;\n    }\n}\n"
+      }
+    }
+  }
+}
