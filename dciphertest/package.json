@@ -16,6 +16,7 @@
     "hardhat": "^3.1.11"
   },
   "dependencies": {
+    "ethers": "^6.16.0",
     "randomness-solidity": "^0.0.10"
   }
 }
