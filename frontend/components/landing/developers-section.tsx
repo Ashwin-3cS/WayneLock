@@ -6,51 +6,47 @@ import { Copy, Check } from "lucide-react";
 const codeExamples = [
   {
     label: "Install",
-    code: `npm install @optimus/sdk
+    code: `npm install @waynelock/sdk
 
 # or
-yarn add @optimus/sdk
-pnpm add @optimus/sdk`,
+yarn add @waynelock/sdk
+pnpm add @waynelock/sdk`,
   },
   {
-    label: "Initialize",
-    code: `import { Optimus } from '@optimus/sdk'
+    label: "Create vault",
+    code: `import { WayneLock } from '@waynelock/sdk'
 
-const optimus = new Optimus({
-  apiKey: process.env.OPTIMUS_KEY
+const vault = await WayneLock.createVault({
+  entropy: getDeviceEntropy(),
+  secret: userSecret,
+  randomness: await drand.fetch()
 })`,
   },
   {
-    label: "Deploy",
-    code: `const app = await optimus.deploy({
-  name: 'my-app',
-  region: 'auto',
-  scaling: {
-    min: 1,
-    max: 100
-  }
-})
+    label: "Store & recover",
+    code: `const cid = await vault.store({ network: 'ipfs', persist: 'filecoin' })
 
-console.log('Live at:', app.url)`,
+// Recover with guardian approvals on FVM
+await vault.recover({ guardians: fvmContract.getApprovals() })`,
   },
 ];
 
 const features = [
   { 
     title: "TypeScript native", 
-    description: "Full type safety with auto-generated types."
+    description: "Full type safety for vault and recovery flows."
   },
   { 
-    title: "Zero config", 
-    description: "Sensible defaults that just work."
+    title: "Crypto-first", 
+    description: "Device entropy, drand, and user secrets out of the box."
   },
   { 
-    title: "Edge-ready", 
-    description: "Runs anywhere: Node, Deno, Bun, browsers."
+    title: "Lit + FVM", 
+    description: "Programmable keys and guardian contracts integrated."
   },
   { 
-    title: "12KB gzipped", 
-    description: "Lightweight with zero dependencies."
+    title: "IPFS/Filecoin", 
+    description: "Decentralized storage with durable persistence."
   },
 ];
 
@@ -122,13 +118,13 @@ export function DevelopersSection() {
               For developers
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
-              Built by devs.
+              Build on
               <br />
-              <span className="text-muted-foreground">For devs.</span>
+              <span className="text-muted-foreground">WayneLock.</span>
             </h2>
             <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
-              A thoughtfully designed SDK that gets out of your way. 
-              Ship faster with intuitive APIs and exceptional documentation.
+              SDK and docs for vault creation, IPFS storage, and guardian recovery. 
+              Integrate self-custodial password management into your app.
             </p>
             
             {/* Features */}

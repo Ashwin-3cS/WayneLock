@@ -21,8 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Optimus - Platform to Create',
-  description: 'The creative platform for teams who ship. Build, deploy, and scale with unprecedented velocity.',
+  title: 'WayneLock - Decentralized Password Vault',
+  description: 'Self-custodial password vault with multi-layer crypto, IPFS/Filecoin storage, Lit Protocol key management, and guardian recovery on FVM. No central servers, no single point of trust.',
   generator: 'v0.app',
 }
 

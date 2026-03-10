@@ -5,26 +5,26 @@ import { useEffect, useRef, useState } from "react";
 const features = [
   {
     number: "01",
-    title: "Instant Deployment",
-    description: "Push to production in seconds. Our edge network ensures your applications load instantly, anywhere in the world.",
+    title: "Multi-Layer Crypto Pipeline",
+    description: "Passwords are generated and hardened using device entropy, user secrets, and verifiable randomness from drand. No single source of trust.",
     visual: "deploy",
   },
   {
     number: "02",
-    title: "AI-Native Workflows",
-    description: "Build intelligent applications with built-in AI capabilities. From inference to training, everything scales automatically.",
+    title: "Decentralized Storage",
+    description: "Your encrypted vault lives on IPFS and is persisted through Filecoin. No central database—data stays distributed and durable.",
     visual: "ai",
   },
   {
     number: "03",
-    title: "Real-time Collaboration",
-    description: "Work together seamlessly. Live preview, instant feedback, and version control that actually makes sense.",
+    title: "Programmable Key Management",
+    description: "Vault access is controlled through Lit Protocol. Define who can unlock what, with conditions that live on-chain.",
     visual: "collab",
   },
   {
     number: "04",
-    title: "Enterprise Security",
-    description: "Bank-grade encryption, SOC 2 compliance, and granular access controls. Your data stays yours.",
+    title: "Guardian Recovery",
+    description: "Recovery is secured by guardian approvals tracked via smart contracts on the Filecoin Virtual Machine. Recover without a single point of failure.",
     visual: "security",
   },
 ];
@@ -330,9 +330,9 @@ export function FeaturesSection() {
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
             }`}
           >
-            Everything you need.
+            Encrypted, decentralized,
             <br />
-            <span className="text-muted-foreground">Nothing you don&apos;t.</span>
+            <span className="text-muted-foreground">recoverable.</span>
           </h2>
         </div>
 
