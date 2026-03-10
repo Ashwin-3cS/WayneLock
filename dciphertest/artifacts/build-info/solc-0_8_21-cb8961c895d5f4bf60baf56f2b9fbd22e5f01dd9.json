@@ -1,6 +1,6 @@
 {
   "_format": "hh3-sol-build-info-1",
-  "id": "solc-0_8_21-effb8a9ad22d22d21e49bdfd482456510e5e9abd",
+  "id": "solc-0_8_21-cb8961c895d5f4bf60baf56f2b9fbd22e5f01dd9",
   "solcVersion": "0.8.21",
   "solcLongVersion": "0.8.21+commit.d9974bed",
   "userSourceNameMap": {
@@ -10,6 +10,10 @@
     "language": "Solidity",
     "settings": {
       "evmVersion": "shanghai",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
       "outputSelection": {
         "*": {
           "": [
