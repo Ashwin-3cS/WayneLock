@@ -17,6 +17,7 @@ import {
 import { Copy, ArrowRight, Shield, Hash, Shuffle, KeyRound, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generatePassword } from "@/lib/password-generator";
+import { encryptPassword } from "@/lib/password-encrypt";
 
 const pipelineSteps = [
   { id: "entropy", label: "Device entropy", icon: Shield },
@@ -32,20 +33,23 @@ export default function CreatePage() {
   const [lowercase, setLowercase] = useState(true);
   const [numbers, setNumbers] = useState(true);
   const [symbols, setSymbols] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [encryptedBlob, setEncryptedBlob] = useState("");
+  const [wrappedKey, setWrappedKey] = useState("");
+  const [masterKey, setMasterKey] = useState("");
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
-  const handleCopy = () => {
-    if (password) {
-      navigator.clipboard.writeText(password);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const handleCopy = (text: string, id: string) => {
+    if (text) {
+      navigator.clipboard.writeText(text);
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
     }
   };
 
@@ -70,9 +74,18 @@ export default function CreatePage() {
       });
       setPassword(result.password);
       console.log("Password generation metadata:", result.metadata);
+
+      const { encryptedBlob, key, masterKey: mk } = await encryptPassword(result.password);
+      setEncryptedBlob(encryptedBlob);
+      setWrappedKey(key);
+      setMasterKey(mk);
+      console.log("Encrypted: blob + key (wrapped). Master key must be saved to decrypt.");
     } catch (err) {
-      console.error("Password generation failed:", err);
+      console.error("Password generation or encryption failed:", err);
       setPassword("");
+      setEncryptedBlob("");
+      setWrappedKey("");
+      setMasterKey("");
     } finally {
       setActiveStep(null);
       setIsGenerating(false);
@@ -225,17 +238,88 @@ export default function CreatePage() {
                     size="icon"
                     variant="outline"
                     className="h-14 w-14 shrink-0 border-foreground/10"
-                    onClick={handleCopy}
+                    onClick={() => handleCopy(password, "password")}
                     disabled={!password}
                     aria-label="Copy password"
                   >
-                    {copied ? (
+                    {copied === "password" ? (
                       <span className="text-xs font-mono text-green-600">OK</span>
                     ) : (
                       <Copy className="w-5 h-5" />
                     )}
                   </Button>
                 </div>
+
+                {/* Encrypted blob + key + master key (after generation) */}
+                {(encryptedBlob || wrappedKey || masterKey) && (
+                  <div className="space-y-4 p-4 rounded-lg border border-foreground/10 bg-muted/30">
+                    <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+                      Encrypted output
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs font-mono text-muted-foreground">Encrypted blob</Label>
+                        <div className="flex gap-2 mt-1">
+                          <Input
+                            readOnly
+                            value={encryptedBlob}
+                            className="font-mono text-xs h-10 bg-background border-foreground/10"
+                          />
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => handleCopy(encryptedBlob, "blob")}
+                            aria-label="Copy blob"
+                          >
+                            {copied === "blob" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-mono text-muted-foreground">Key (wrapped)</Label>
+                        <div className="flex gap-2 mt-1">
+                          <Input
+                            readOnly
+                            value={wrappedKey}
+                            className="font-mono text-xs h-10 bg-background border-foreground/10"
+                          />
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => handleCopy(wrappedKey, "key")}
+                            aria-label="Copy key"
+                          >
+                            {copied === "key" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-mono text-muted-foreground">Master key — save this to decrypt</Label>
+                        <div className="flex gap-2 mt-1">
+                          <Input
+                            readOnly
+                            value={masterKey}
+                            className="font-mono text-xs h-10 bg-foreground/5 border-foreground/20"
+                          />
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => handleCopy(masterKey, "master")}
+                            aria-label="Copy master key"
+                          >
+                            {copied === "master" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          You need the master key to unwrap the key and decrypt the blob.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Length */}
                 <div className="space-y-4">
