@@ -14,8 +14,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Copy, ArrowRight, Shield, Hash, Shuffle, KeyRound } from "lucide-react";
+import { Copy, ArrowRight, Shield, Hash, Shuffle, KeyRound, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { generatePassword } from "@/lib/password-generator";
 
 const pipelineSteps = [
   { id: "entropy", label: "Device entropy", icon: Shield },
@@ -34,6 +35,7 @@ export default function CreatePage() {
   const [copied, setCopied] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [activeStep, setActiveStep] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
@@ -47,16 +49,34 @@ export default function CreatePage() {
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setPassword("");
     setActiveStep(0);
+
     const steps = [0, 1, 2, 3];
+    const stepInterval = 600;
     steps.forEach((step, i) => {
-      setTimeout(() => setActiveStep(step), i * 400);
+      setTimeout(() => setActiveStep(step), i * stepInterval);
     });
-    setTimeout(() => {
-      setPassword("••••••••••••••••••••");
+
+    try {
+      const result = await generatePassword({
+        length: length[0] ?? 20,
+        uppercase,
+        lowercase,
+        numbers,
+        symbols,
+      });
+      setPassword(result.password);
+      console.log("Password generation metadata:", result.metadata);
+    } catch (err) {
+      console.error("Password generation failed:", err);
+      setPassword("");
+    } finally {
       setActiveStep(null);
-    }, 1600);
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -174,7 +194,7 @@ export default function CreatePage() {
                 isVisible ? "opacity-100" : "opacity-0"
               )}
             >
-              <span className="font-mono text-foreground/70">Note:</span> The actual generation logic (device entropy + hashing + drand) will be wired in the next step. This UI is ready for it.
+              <span className="font-mono text-foreground/70">Note:</span> R1 and R2 currently use local placeholder randomness; drand will be integrated for verifiable on-chain randomness next.
             </p>
           </div>
 
@@ -275,9 +295,19 @@ export default function CreatePage() {
                   size="lg"
                   className="w-full h-14 text-base rounded-full bg-foreground text-background hover:bg-foreground/90 group"
                   onClick={handleGenerate}
+                  disabled={isGenerating}
                 >
-                  Generate password
-                  <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating…
+                    </>
+                  ) : (
+                    <>
+                      Generate password
+                      <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>
