@@ -194,7 +194,7 @@ export default function CreatePage() {
                 isVisible ? "opacity-100" : "opacity-0"
               )}
             >
-              <span className="font-mono text-foreground/70">Note:</span> R1 and R2 currently use local placeholder randomness; drand will be integrated for verifiable on-chain randomness next.
+              <span className="font-mono text-foreground/70">Note:</span> R1 and R2 use verifiable randomness from the drand beacon network (latest and previous round).
             </p>
           </div>
 

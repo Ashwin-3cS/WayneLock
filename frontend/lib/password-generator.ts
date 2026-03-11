@@ -1,9 +1,10 @@
 /**
  * WayneLock client-side password generator.
- * Multi-layer crypto: device entropy (C) + placeholder R1/R2 (drand later) → HKDF → scrypt → final password.
+ * Multi-layer crypto: device entropy (C) + drand R1/R2 → HKDF → scrypt → final password.
  */
 
 import { scrypt } from "scrypt-js";
+import { getDrandRandomness } from "./drand";
 
 // App salts (deterministic, app-specific)
 const APP_SALT1 = new Uint8Array(32);
@@ -40,17 +41,12 @@ function generateDeviceSecret(): Uint8Array {
   return deviceSecret;
 }
 
-/** Placeholder R1/R2 (replace with drand later) - 32 bytes each */
-function getPlaceholderR1(): Uint8Array {
-  const r1 = crypto.getRandomValues(new Uint8Array(32));
-  console.log("🎲 Step 2 (placeholder): R1 bytes:", arrayToBase64(r1));
-  return r1;
-}
-
-function getPlaceholderR2(): Uint8Array {
-  const r2 = crypto.getRandomValues(new Uint8Array(32));
-  console.log("🎲 Step 5 (placeholder): R2 bytes:", arrayToBase64(r2));
-  return r2;
+/** R1/R2 from drand (two beacons: latest + previous round) */
+async function getDrandR1R2(): Promise<{ r1: Uint8Array; r2: Uint8Array }> {
+  const { r1, r2 } = await getDrandRandomness();
+  console.log("🎲 Step 2: R1 from drand:", arrayToBase64(r1));
+  console.log("🎲 Step 5: R2 from drand:", arrayToBase64(r2));
+  return { r1, r2 };
 }
 
 /** HKDF-SHA256 using Web Crypto API (browser-native) */
@@ -170,16 +166,15 @@ export type PasswordGenerationResult = {
  * R2 (placeholder) → HKDF( LocalKey || R2 ) → seed_raw → scrypt → Password_bytes → human password.
  */
 export async function generatePassword(opts: GenerateOptions): Promise<PasswordGenerationResult> {
-  console.log("🚀 STARTING PASSWORD GENERATION (device entropy + placeholder R1/R2, drand later)");
+  console.log("🚀 STARTING PASSWORD GENERATION (device entropy + drand R1/R2)");
   console.log("📊 Options:", opts);
 
   const deviceSecret = generateDeviceSecret();
-  const r1 = getPlaceholderR1();
+  const { r1, r2 } = await getDrandR1R2();
 
   const localRaw = await generateLocalRaw(r1, deviceSecret);
-  const { localKey, salt1 } = await generateLocalKey(localRaw);
+  const { localKey } = await generateLocalKey(localRaw);
 
-  const r2 = getPlaceholderR2();
   const { passwordBytes, passwordSalt } = await generatePasswordBytes(localKey, r2);
 
   const charset = buildCharset(opts);
