@@ -3,18 +3,18 @@
 import { useEffect, useState, useRef } from "react";
 
 const integrations = [
-  { name: "GitHub", category: "Version Control" },
-  { name: "Slack", category: "Communication" },
-  { name: "Stripe", category: "Payments" },
-  { name: "PostgreSQL", category: "Database" },
-  { name: "Redis", category: "Cache" },
-  { name: "AWS", category: "Cloud" },
-  { name: "MongoDB", category: "Database" },
-  { name: "Vercel", category: "Hosting" },
-  { name: "Figma", category: "Design" },
-  { name: "Linear", category: "Project Management" },
-  { name: "Notion", category: "Documentation" },
-  { name: "OpenAI", category: "AI/ML" },
+  { name: "IPFS", category: "Storage" },
+  { name: "Filecoin", category: "Persistence" },
+  { name: "drand", category: "Randomness" },
+  { name: "Lit Protocol", category: "Keys" },
+  { name: "FVM", category: "Smart contracts" },
+  { name: "WalletConnect", category: "Wallets" },
+  { name: "MetaMask", category: "Wallets" },
+  { name: "Brave", category: "Browser" },
+  { name: "Chrome", category: "Browser" },
+  { name: "Firefox", category: "Browser" },
+  { name: "Ledger", category: "Hardware" },
+  { name: "Web3 Auth", category: "Auth" },
 ];
 
 export function IntegrationsSection() {
@@ -48,12 +48,12 @@ export function IntegrationsSection() {
             <span className="w-8 h-px bg-foreground/30" />
           </span>
           <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-6">
-            Works with everything
+            Fits your stack.
             <br />
-            you already use.
+            Keeps you in control.
           </h2>
           <p className="text-xl text-muted-foreground">
-            200+ pre-built integrations. Connect your entire stack in minutes.
+            Wallets, browsers, and the decentralized stack. Your vault works where you do.
           </p>
         </div>
 

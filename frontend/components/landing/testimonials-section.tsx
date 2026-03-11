@@ -4,32 +4,32 @@ import { useEffect, useState } from "react";
 
 const testimonials = [
   {
-    quote: "Optimus transformed our deployment pipeline. What used to take hours now happens in seconds.",
+    quote: "Finally, a password vault that doesn't rely on a central company. My keys, my vault, my recovery.",
     author: "Sarah Chen",
-    role: "CTO",
+    role: "Security Lead",
     company: "Meridian Labs",
-    metric: "10x faster deployments",
+    metric: "Zero passwords on third-party servers",
   },
   {
-    quote: "The developer experience is unmatched. Our team's productivity has never been higher.",
+    quote: "Guardian recovery on FVM means we can recover access without a single point of failure. Game changer.",
     author: "Marcus Webb",
     role: "Engineering Lead",
     company: "Flux Systems",
-    metric: "40% more features shipped",
+    metric: "Recovery without trust",
   },
   {
-    quote: "Finally, infrastructure that scales with our ambition. Zero downtime since we switched.",
+    quote: "drand for randomness and Lit for keys—we can actually verify how our passwords are generated and protected.",
     author: "Elena Rodriguez",
     role: "VP Engineering",
     company: "Beacon AI",
-    metric: "99.99% uptime",
+    metric: "Verifiable crypto pipeline",
   },
   {
-    quote: "The integrations are seamless. We connected our entire stack in a single afternoon.",
+    quote: "IPFS and Filecoin for the vault means we're not locked into one provider. Decentralized from day one.",
     author: "James Liu",
     role: "Founder",
     company: "Prism Analytics",
-    metric: "50+ integrations used",
+    metric: "Self-custodial storage",
   },
 ];
 
@@ -138,7 +138,7 @@ export function TestimonialsSection() {
         {/* Company Logos Marquee Label */}
         <div className="mt-24 pt-12 border-t border-foreground/10">
           <p className="font-mono text-xs tracking-widest text-muted-foreground uppercase mb-8 text-center">
-            Trusted by forward-thinking teams
+            Trusted by teams who value self-custody
           </p>
         </div>
       </div>
@@ -148,7 +148,7 @@ export function TestimonialsSection() {
         <div className="flex gap-16 items-center marquee">
           {[...Array(2)].map((_, setIdx) => (
             <div key={setIdx} className="flex gap-16 items-center shrink-0">
-              {["Meridian Labs", "Flux Systems", "Beacon AI", "Prism Analytics", "Nova Tech", "Quantum Corp", "Atlas Digital", "Vertex Labs"].map(
+              {["Meridian Labs", "Flux Systems", "Beacon AI", "Prism Analytics", "Web3 Security", "DeFi Teams", "Atlas Digital", "Vertex Labs"].map(
                 (company) => (
                   <span
                     key={`${setIdx}-${company}`}

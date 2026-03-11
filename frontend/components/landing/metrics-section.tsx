@@ -46,28 +46,28 @@ function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffi
 
 const metrics = [
   { 
-    value: 2847392, 
+    value: 0, 
     suffix: "", 
     prefix: "",
-    label: "API requests today",
+    label: "Passwords stored on central servers",
   },
   { 
-    value: 99, 
-    suffix: ".99%", 
+    value: 100, 
+    suffix: "%", 
     prefix: "",
-    label: "Uptime this quarter",
+    label: "Vault encrypted end-to-end",
   },
   { 
-    value: 23, 
-    suffix: "ms", 
-    prefix: "",
-    label: "Average response time",
-  },
-  { 
-    value: 184, 
+    value: 1, 
     suffix: "", 
     prefix: "",
-    label: "Countries served",
+    label: "Key holder: you (and your guardians)",
+  },
+  { 
+    value: 3, 
+    suffix: "+", 
+    prefix: "",
+    label: "Layers of crypto (entropy + secret + drand)",
   },
 ];
 
@@ -101,16 +101,16 @@ export function MetricsSection() {
           <div>
             <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
               <span className="w-8 h-px bg-foreground/30" />
-              Live metrics
+              By the numbers
             </span>
             <h2
               className={`text-4xl lg:text-6xl font-display tracking-tight transition-all duration-700 ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
             >
-              Performance you
+              Security you
               <br />
-              can measure.
+              can verify.
             </h2>
           </div>
           <div className="flex items-center gap-4 font-mono text-sm text-muted-foreground">

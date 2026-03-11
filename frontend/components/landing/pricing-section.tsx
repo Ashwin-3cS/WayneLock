@@ -5,50 +5,45 @@ import { ArrowRight, Check } from "lucide-react";
 
 const plans = [
   {
-    name: "Starter",
-    description: "For individuals and small projects",
+    name: "Personal",
+    description: "For individuals and small vaults",
     price: { monthly: 0, annual: 0 },
     features: [
-      "Up to 3 projects",
-      "1GB storage",
-      "Community support",
-      "Basic analytics",
-      "SSL certificates",
+      "Unlimited passwords",
+      "IPFS + Filecoin storage",
+      "drand randomness",
+      "Guardian recovery (FVM)",
+      "Lit Protocol keys",
     ],
-    cta: "Start free",
+    cta: "Create vault free",
     popular: false,
   },
   {
-    name: "Pro",
-    description: "For growing teams and businesses",
-    price: { monthly: 29, annual: 24 },
+    name: "Team",
+    description: "For teams and shared access",
+    price: { monthly: 0, annual: 0 },
     features: [
-      "Unlimited projects",
-      "100GB storage",
-      "Priority support",
-      "Advanced analytics",
-      "Custom domains",
-      "Team collaboration",
-      "API access",
+      "Everything in Personal",
+      "Shared vault policies",
+      "Multiple guardians",
+      "SDK & API access",
+      "Documentation & support",
     ],
-    cta: "Start trial",
+    cta: "Get started",
     popular: true,
   },
   {
     name: "Enterprise",
-    description: "For large-scale operations",
+    description: "Custom deployment & compliance",
     price: { monthly: null, annual: null },
     features: [
-      "Everything in Pro",
-      "Unlimited storage",
-      "24/7 dedicated support",
+      "Everything in Team",
+      "On-chain policy customization",
+      "Audit & compliance support",
+      "Dedicated guardian setup",
       "Custom integrations",
-      "SLA guarantee",
-      "On-premise option",
-      "Security audit",
-      "Custom contracts",
     ],
-    cta: "Contact sales",
+    cta: "Contact us",
     popular: false,
   },
 ];
@@ -65,12 +60,12 @@ export function PricingSection() {
             Pricing
           </span>
           <h2 className="font-display text-5xl md:text-6xl lg:text-7xl tracking-tight text-foreground mb-6">
-            Simple, transparent
+            Self-custodial
             <br />
-            <span className="text-stroke">pricing</span>
+            <span className="text-stroke">by default</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl">
-            Start free and scale as you grow. No hidden fees, no surprises.
+            Create your vault free. No subscription lock-in—you own your keys and your data.
           </p>
         </div>
 
@@ -100,11 +95,6 @@ export function PricingSection() {
           >
             Annual
           </span>
-          {isAnnual && (
-            <span className="ml-2 px-2 py-1 bg-foreground text-primary-foreground text-xs font-mono">
-              Save 17%
-            </span>
-          )}
         </div>
 
         {/* Pricing Cards */}
@@ -172,9 +162,9 @@ export function PricingSection() {
 
         {/* Bottom Note */}
         <p className="mt-12 text-center text-sm text-muted-foreground">
-          All plans include automatic updates, HTTPS, and DDoS protection.{" "}
-          <a href="#" className="underline underline-offset-4 hover:text-foreground transition-colors">
-            Compare all features
+          All plans use the same crypto pipeline: device entropy, drand, IPFS/Filecoin, and Lit + FVM.{" "}
+          <a href="#how-it-works" className="underline underline-offset-4 hover:text-foreground transition-colors">
+            How it works
           </a>
         </p>
       </div>

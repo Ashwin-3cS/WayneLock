@@ -6,27 +6,27 @@ import { Shield, Lock, Eye, FileCheck } from "lucide-react";
 const securityFeatures = [
   {
     icon: Shield,
-    title: "SOC 2 Type II",
-    description: "Independently audited security controls with continuous monitoring.",
+    title: "Self-custodial",
+    description: "You hold the keys. No central server ever has access to your plaintext passwords.",
   },
   {
     icon: Lock,
     title: "End-to-end encryption",
-    description: "AES-256 encryption for data at rest and TLS 1.3 in transit.",
+    description: "Vault encrypted with multi-layer crypto: device entropy, user secret, and drand randomness.",
   },
   {
     icon: Eye,
-    title: "Zero-trust architecture",
-    description: "Every request is authenticated and authorized. No exceptions.",
+    title: "Verifiable randomness",
+    description: "Password generation uses drand beacons so randomness is auditable and trustworthy.",
   },
   {
     icon: FileCheck,
-    title: "GDPR & HIPAA",
-    description: "Full compliance with data protection and healthcare regulations.",
+    title: "Guardian recovery",
+    description: "Recovery secured by approvals tracked on FVM. No single party can unlock your vault.",
   },
 ];
 
-const certifications = ["SOC 2", "ISO 27001", "HIPAA", "GDPR", "CCPA"];
+const certifications = ["No central DB", "IPFS", "drand", "Lit", "FVM"];
 
 export function SecuritySection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -59,13 +59,13 @@ export function SecuritySection() {
               Security
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
-              Trust is
+              Trust no one.
               <br />
-              non-negotiable.
+              Verify everything.
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-12">
-              Enterprise-grade security isn&apos;t optional. It&apos;s built into every layer 
-              of our platform, from infrastructure to application.
+              Strong cryptography, decentralized storage, and programmable recovery. 
+              Your passwords stay encrypted and recoverable without trusting any single party.
             </p>
 
             {/* Certifications */}

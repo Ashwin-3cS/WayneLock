@@ -3,12 +3,12 @@
 import { useEffect, useState, useRef } from "react";
 
 const locations = [
-  { city: "San Francisco", region: "US West", latency: "12ms" },
-  { city: "New York", region: "US East", latency: "18ms" },
-  { city: "London", region: "Europe", latency: "24ms" },
-  { city: "Tokyo", region: "Asia Pacific", latency: "32ms" },
-  { city: "Sydney", region: "Oceania", latency: "45ms" },
-  { city: "Sao Paulo", region: "South America", latency: "38ms" },
+  { city: "IPFS", region: "Decentralized storage", latency: "Content-addressed" },
+  { city: "Filecoin", region: "Persistence layer", latency: "Durable" },
+  { city: "drand", region: "Verifiable randomness", latency: "Beacon" },
+  { city: "Lit Protocol", region: "Key management", latency: "Programmable" },
+  { city: "FVM", region: "Filecoin Virtual Machine", latency: "Guardian contracts" },
+  { city: "Your device", region: "Entropy & secrets", latency: "Local" },
 ];
 
 export function InfrastructureSection() {
@@ -50,28 +50,28 @@ export function InfrastructureSection() {
               Infrastructure
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
-              Global by
+              Decentralized
               <br />
-              default.
+              by design.
             </h2>
             <p className="text-xl text-muted-foreground leading-relaxed mb-12">
-              Deploy once, run everywhere. Our edge network spans 17 data centers 
-              across 6 continents, delivering sub-50ms latency to 99% of the world.
+              No single server holds your vault. IPFS and Filecoin store the ciphertext; 
+              drand provides verifiable randomness; Lit and FVM handle keys and recovery.
             </p>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-8">
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">17</div>
-                <div className="text-sm text-muted-foreground">Data centers</div>
+                <div className="text-4xl lg:text-5xl font-display mb-2">0</div>
+                <div className="text-sm text-muted-foreground">Passwords on our servers</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">99.99%</div>
-                <div className="text-sm text-muted-foreground">Uptime SLA</div>
+                <div className="text-4xl lg:text-5xl font-display mb-2">E2E</div>
+                <div className="text-sm text-muted-foreground">Encrypted vault</div>
               </div>
               <div>
-                <div className="text-4xl lg:text-5xl font-display mb-2">&lt;50ms</div>
-                <div className="text-sm text-muted-foreground">Global latency</div>
+                <div className="text-4xl lg:text-5xl font-display mb-2">FVM</div>
+                <div className="text-sm text-muted-foreground">Guardian recovery</div>
               </div>
             </div>
           </div>
@@ -85,10 +85,10 @@ export function InfrastructureSection() {
             <div className="border border-foreground/10">
               {/* Header */}
               <div className="px-6 py-4 border-b border-foreground/10 flex items-center justify-between">
-                <span className="text-sm font-mono text-muted-foreground">Edge Network</span>
+                <span className="text-sm font-mono text-muted-foreground">Decentralized stack</span>
                 <span className="flex items-center gap-2 text-xs font-mono text-green-600">
                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  All operational
+                  No single point of failure
                 </span>
               </div>
 
