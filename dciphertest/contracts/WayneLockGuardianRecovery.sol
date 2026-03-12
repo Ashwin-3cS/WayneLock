@@ -32,6 +32,7 @@ contract WayneLockGuardianRecovery {
         uint8 threshold; // approvals required
         uint256 recoveryId; // current active recovery round (0 means none started yet)
         uint256 approvals; // approvals count for current recoveryId
+        uint256 recoveryStart; // block timestamp when current recovery round started
         bool initialized;
         bool recoveryActive;
     }
@@ -42,6 +43,9 @@ contract WayneLockGuardianRecovery {
 
     // For each owner and recovery round, track if a guardian has approved.
     mapping(address => mapping(uint256 => mapping(address => bool))) private approved;
+
+    // 5 minute recovery window per session
+    uint256 public constant RECOVERY_WINDOW = 5 minutes;
 
     modifier onlyOwner(address owner) {
         if (msg.sender != owner) revert NotOwner();
@@ -113,6 +117,7 @@ contract WayneLockGuardianRecovery {
         v.recoveryId += 1;
         v.approvals = 0;
         v.recoveryActive = true;
+        v.recoveryStart = block.timestamp;
         emit RecoveryStarted(msg.sender, v.recoveryId);
     }
 
@@ -122,6 +127,11 @@ contract WayneLockGuardianRecovery {
     function approveRecovery(address owner) external onlyInitialized(owner) onlyGuardian(owner) {
         VaultConfig storage v = vaults[owner];
         if (!v.recoveryActive || v.recoveryId == 0) revert RecoveryNotActive();
+        // Enforce 5 minute window; if expired, owner must start a new recovery session.
+        if (block.timestamp > v.recoveryStart + RECOVERY_WINDOW) {
+            v.recoveryActive = false;
+            revert RecoveryNotActive();
+        }
 
         if (approved[owner][v.recoveryId][msg.sender]) revert AlreadyApproved();
         approved[owner][v.recoveryId][msg.sender] = true;
@@ -137,6 +147,12 @@ contract WayneLockGuardianRecovery {
     function finalizeRecovery() external onlyInitialized(msg.sender) {
         VaultConfig storage v = vaults[msg.sender];
         if (!v.recoveryActive || v.recoveryId == 0) revert RecoveryNotActive();
+        // Clean current session approvals so future rounds don't see stale approvals.
+        address[] storage gs = guardians[msg.sender];
+        for (uint256 i = 0; i < gs.length; i++) {
+            approved[msg.sender][v.recoveryId][gs[i]] = false;
+        }
+        v.approvals = 0;
         v.recoveryActive = false;
         emit RecoveryFinalized(msg.sender, v.recoveryId);
     }
