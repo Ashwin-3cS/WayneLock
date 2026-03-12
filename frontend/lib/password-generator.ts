@@ -57,13 +57,14 @@ async function hkdf(
   info: string
 ): Promise<Uint8Array> {
   const infoBytes = new TextEncoder().encode(info);
-  const key = await crypto.subtle.importKey("raw", ikm, { name: "HKDF" }, false, ["deriveBits"]);
+  // TS sometimes narrows Uint8Array.buffer to ArrayBufferLike; WebCrypto expects BufferSource.
+  const key = await crypto.subtle.importKey("raw", ikm as BufferSource, { name: "HKDF" }, false, ["deriveBits"]);
   const derived = await crypto.subtle.deriveBits(
     {
       name: "HKDF",
       hash: "SHA-256",
-      salt,
-      info: infoBytes,
+      salt: salt as BufferSource,
+      info: infoBytes as BufferSource,
     },
     key,
     lengthBytes * 8
