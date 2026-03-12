@@ -233,6 +233,18 @@ export default function CreatePage() {
             >
               Back to home
             </Link>
+            <Link
+              href="/recovery/owner"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Owner recovery
+            </Link>
+            <Link
+              href="/recovery/guardian"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Guardian approval
+            </Link>
             <Button asChild size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
               <Link href="/">Create vault</Link>
             </Button>
