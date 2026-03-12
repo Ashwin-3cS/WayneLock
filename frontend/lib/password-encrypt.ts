@@ -24,9 +24,9 @@ async function aesGcmEncrypt(
   iv: Uint8Array
 ): Promise<Uint8Array> {
   const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv, tagLength: 128 },
+    { name: "AES-GCM", iv: iv as BufferSource, tagLength: 128 },
     key,
-    plaintext
+    plaintext as BufferSource
   );
   return new Uint8Array(ciphertext);
 }
@@ -37,15 +37,15 @@ async function aesGcmDecrypt(
   iv: Uint8Array
 ): Promise<Uint8Array> {
   const plaintext = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv, tagLength: 128 },
+    { name: "AES-GCM", iv: iv as BufferSource, tagLength: 128 },
     key,
-    ciphertext
+    ciphertext as BufferSource
   );
   return new Uint8Array(plaintext);
 }
 
 async function importKey(bytes: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", bytes, { name: "AES-GCM" }, false, [
+  return crypto.subtle.importKey("raw", bytes as BufferSource, { name: "AES-GCM" }, false, [
     "encrypt",
     "decrypt",
   ]);
@@ -58,6 +58,13 @@ export type EncryptResult = {
   key: string;
   /** Master key (base64). Save this; needed to unwrap key and decrypt. */
   masterKey: string;
+};
+
+export type EncryptForLitResult = {
+  /** Encrypted password (base64: IV || ciphertext+tag) */
+  encryptedBlob: string;
+  /** Raw DEK (base64) to be encrypted & stored with Lit */
+  dekB64: string;
 };
 
 /**
@@ -92,6 +99,38 @@ export async function encryptPassword(password: string): Promise<EncryptResult> 
   console.log("🔒 Master key (base64) - save this to decrypt later");
 
   return { encryptedBlob, key, masterKey };
+}
+
+/**
+ * Encrypt the password for the Lit flow:
+ * - Encrypt password with a random DEK (AES-GCM) → encryptedBlob
+ * - Return the raw DEK so it can be encrypted + gated by Lit access control conditions
+ */
+export async function encryptPasswordForLit(password: string): Promise<EncryptForLitResult> {
+  const passwordBytes = new TextEncoder().encode(password);
+
+  const dek = crypto.getRandomValues(new Uint8Array(KEY_LEN));
+  const dekKey = await importKey(dek);
+
+  const blobIv = crypto.getRandomValues(new Uint8Array(AES_GCM_IV_LEN));
+  const ciphertext = await aesGcmEncrypt(passwordBytes, dekKey, blobIv);
+  const encryptedBlob = bytesToB64(new Uint8Array([...blobIv, ...ciphertext]));
+
+  console.log("🔒 Encrypted (Lit flow): encryptedBlob length", encryptedBlob.length);
+  return { encryptedBlob, dekB64: bytesToB64(dek) };
+}
+
+/** Decrypt encrypted blob using a DEK (base64). */
+export async function decryptBlobWithDek(encryptedBlob: string, dekB64: string): Promise<string> {
+  const blobBytes = b64ToBytes(encryptedBlob);
+  const dek = b64ToBytes(dekB64);
+
+  const blobIv = blobBytes.slice(0, AES_GCM_IV_LEN);
+  const blobCiphertext = blobBytes.slice(AES_GCM_IV_LEN);
+
+  const dekKey = await importKey(dek);
+  const passwordBytes = await aesGcmDecrypt(blobCiphertext, dekKey, blobIv);
+  return new TextDecoder().decode(passwordBytes);
 }
 
 /**

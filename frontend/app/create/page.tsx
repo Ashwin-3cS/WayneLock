@@ -17,7 +17,8 @@ import {
 import { Copy, ArrowRight, Shield, Hash, Shuffle, KeyRound, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generatePassword } from "@/lib/password-generator";
-import { encryptPassword } from "@/lib/password-encrypt";
+import { decryptBlobWithDek, encryptPasswordForLit } from "@/lib/password-encrypt";
+import { DEFAULT_LIT_CHAIN, litDecryptDek, litEncryptDek } from "@/lib/lit-recovery";
 
 const pipelineSteps = [
   { id: "entropy", label: "Device entropy", icon: Shield },
@@ -38,8 +39,12 @@ export default function CreatePage() {
   const [activeStep, setActiveStep] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [encryptedBlob, setEncryptedBlob] = useState("");
-  const [wrappedKey, setWrappedKey] = useState("");
-  const [masterKey, setMasterKey] = useState("");
+  const [litCiphertext, setLitCiphertext] = useState("");
+  const [litDataHash, setLitDataHash] = useState("");
+  const [guardianContract, setGuardianContract] = useState("0x20d9983AC7EDDe6e837c0928a6AD61fE77CE1997");
+  const [decryptedPassword, setDecryptedPassword] = useState("");
+  const [isDecrypting, setIsDecrypting] = useState(false);
+  const [evmContractConditions, setEvmContractConditions] = useState<any[] | null>(null);
 
   useEffect(() => {
     setIsVisible(true);
@@ -56,6 +61,10 @@ export default function CreatePage() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     setPassword("");
+    setEncryptedBlob("");
+    setLitCiphertext("");
+    setLitDataHash("");
+    setDecryptedPassword("");
     setActiveStep(0);
 
     const steps = [0, 1, 2, 3];
@@ -75,20 +84,57 @@ export default function CreatePage() {
       setPassword(result.password);
       console.log("Password generation metadata:", result.metadata);
 
-      const { encryptedBlob, key, masterKey: mk } = await encryptPassword(result.password);
+      const { encryptedBlob, dekB64 } = await encryptPasswordForLit(result.password);
       setEncryptedBlob(encryptedBlob);
-      setWrappedKey(key);
-      setMasterKey(mk);
-      console.log("Encrypted: blob + key (wrapped). Master key must be saved to decrypt.");
+
+      if (!guardianContract) {
+        console.warn("Lit step skipped: guardian contract address not set yet.");
+        return;
+      }
+
+      const dekBytes = Uint8Array.from(atob(dekB64), (c) => c.charCodeAt(0));
+      const litRes = await litEncryptDek({
+        dekBytes,
+        contractAddress: guardianContract,
+        chain: DEFAULT_LIT_CHAIN,
+      });
+
+      setLitCiphertext(litRes.ciphertext);
+      setLitDataHash(litRes.dataToEncryptHash);
+      setEvmContractConditions(litRes.evmContractConditions);
+      console.log("✅ Lit encrypted DEK (ciphertext + dataToEncryptHash) ready.");
     } catch (err) {
       console.error("Password generation or encryption failed:", err);
       setPassword("");
       setEncryptedBlob("");
-      setWrappedKey("");
-      setMasterKey("");
+      setLitCiphertext("");
+      setLitDataHash("");
+      setEvmContractConditions(null);
     } finally {
       setActiveStep(null);
       setIsGenerating(false);
+    }
+  };
+
+  const handleDecryptWithLit = async () => {
+    if (!encryptedBlob || !litCiphertext || !litDataHash || !evmContractConditions) return;
+    setIsDecrypting(true);
+    setDecryptedPassword("");
+    try {
+      const dekBytes = await litDecryptDek({
+        ciphertext: litCiphertext,
+        dataToEncryptHash: litDataHash,
+        evmContractConditions: evmContractConditions as any,
+        chain: DEFAULT_LIT_CHAIN,
+      });
+      const dekB64 = btoa(String.fromCharCode(...dekBytes));
+      const plain = await decryptBlobWithDek(encryptedBlob, dekB64);
+      setDecryptedPassword(plain);
+      console.log("✅ Decrypted password via Lit-gated DEK");
+    } catch (err) {
+      console.error("Lit decrypt failed (likely ACC not satisfied yet):", err);
+    } finally {
+      setIsDecrypting(false);
     }
   };
 
@@ -250,8 +296,8 @@ export default function CreatePage() {
                   </Button>
                 </div>
 
-                {/* Encrypted blob + key + master key (after generation) */}
-                {(encryptedBlob || wrappedKey || masterKey) && (
+                {/* Encrypted output (Lit flow) */}
+                {(encryptedBlob || litCiphertext || litDataHash) && (
                   <div className="space-y-4 p-4 rounded-lg border border-foreground/10 bg-muted/30">
                     <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
                       Encrypted output
@@ -277,45 +323,63 @@ export default function CreatePage() {
                         </div>
                       </div>
                       <div>
-                        <Label className="text-xs font-mono text-muted-foreground">Key (wrapped)</Label>
+                        <Label className="text-xs font-mono text-muted-foreground">Lit ciphertext (encrypted key)</Label>
                         <div className="flex gap-2 mt-1">
                           <Input
                             readOnly
-                            value={wrappedKey}
+                            value={litCiphertext}
                             className="font-mono text-xs h-10 bg-background border-foreground/10"
                           />
                           <Button
                             size="icon"
                             variant="outline"
                             className="h-10 w-10 shrink-0"
-                            onClick={() => handleCopy(wrappedKey, "key")}
-                            aria-label="Copy key"
+                            onClick={() => handleCopy(litCiphertext, "litCiphertext")}
+                            aria-label="Copy Lit ciphertext"
                           >
-                            {copied === "key" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
+                            {copied === "litCiphertext" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
                           </Button>
                         </div>
                       </div>
                       <div>
-                        <Label className="text-xs font-mono text-muted-foreground">Master key — save this to decrypt</Label>
+                        <Label className="text-xs font-mono text-muted-foreground">dataToEncryptHash</Label>
                         <div className="flex gap-2 mt-1">
                           <Input
                             readOnly
-                            value={masterKey}
-                            className="font-mono text-xs h-10 bg-foreground/5 border-foreground/20"
+                            value={litDataHash}
+                            className="font-mono text-xs h-10 bg-background border-foreground/10"
                           />
                           <Button
                             size="icon"
                             variant="outline"
                             className="h-10 w-10 shrink-0"
-                            onClick={() => handleCopy(masterKey, "master")}
-                            aria-label="Copy master key"
+                            onClick={() => handleCopy(litDataHash, "litHash")}
+                            aria-label="Copy data hash"
                           >
-                            {copied === "master" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
+                            {copied === "litHash" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          You need the master key to unwrap the key and decrypt the blob.
+                          Lit releases the key only when access conditions pass (guardian contract threshold met).
                         </p>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        <Button
+                          variant="outline"
+                          className="w-full h-11 rounded-full border-foreground/20"
+                          onClick={handleDecryptWithLit}
+                          disabled={isDecrypting || !litCiphertext || !litDataHash || !evmContractConditions}
+                        >
+                          {isDecrypting ? "Decrypting via Lit…" : "Test decrypt via Lit"}
+                        </Button>
+                        {decryptedPassword && (
+                          <div className="p-3 rounded-lg border border-foreground/10 bg-background">
+                            <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">
+                              Decrypted (demo)
+                            </p>
+                            <div className="font-mono text-sm break-all">{decryptedPassword}</div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -372,6 +436,20 @@ export default function CreatePage() {
                       <span className="text-sm">Symbols (!@#$…)</span>
                     </label>
                   </div>
+                </div>
+
+                {/* Recovery contract (Lit ACC) */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-mono">Guardian recovery contract</Label>
+                  <Input
+                    value={guardianContract}
+                    onChange={(e) => setGuardianContract(e.target.value)}
+                    className="font-mono text-xs h-11 bg-background border-foreground/10"
+                    placeholder="0x… (WayneLockGuardianRecovery on Filecoin Calibration)"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Lit will check this contract on <span className="font-mono">{DEFAULT_LIT_CHAIN}</span> before releasing the key.
+                  </p>
                 </div>
 
                 {/* Generate CTA */}
