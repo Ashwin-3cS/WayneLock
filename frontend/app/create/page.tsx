@@ -43,7 +43,7 @@ export default function CreatePage() {
   const [encryptedBlob, setEncryptedBlob] = useState("");
   const [litCiphertext, setLitCiphertext] = useState("");
   const [litDataHash, setLitDataHash] = useState("");
-  const [guardianContract, setGuardianContract] = useState("0x20d9983AC7EDDe6e837c0928a6AD61fE77CE1997");
+  const [guardianContract, setGuardianContract] = useState("0x62efFe14a218032f57Df28f10DD730cE9507ca7C");
   const [vaultCid, setVaultCid] = useState("");
   const [guardiansInput, setGuardiansInput] = useState("");
   const [threshold, setThreshold] = useState(2);

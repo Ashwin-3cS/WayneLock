@@ -12,7 +12,7 @@ import { DEFAULT_LIT_CHAIN, litDecryptDek } from "@/lib/lit-recovery";
 import { decryptBlobWithDek } from "@/lib/password-encrypt";
 import { readIsRecoveryApproved, readRecoveryStatus, startRecoveryOnChain } from "@/lib/guardian-recovery-contract";
 
-const DEFAULT_CONTRACT = "0x20d9983AC7EDDe6e837c0928a6AD61fE77CE1997";
+const DEFAULT_CONTRACT = "0x62efFe14a218032f57Df28f10DD730cE9507ca7C";
 
 export default function OwnerRecoveryPage() {
   const [isVisible, setIsVisible] = useState(false);
