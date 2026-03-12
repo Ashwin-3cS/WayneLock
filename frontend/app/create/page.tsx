@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { generatePassword } from "@/lib/password-generator";
 import { decryptBlobWithDek, encryptPasswordForLit } from "@/lib/password-encrypt";
 import { DEFAULT_LIT_CHAIN, litDecryptDek, litEncryptDek } from "@/lib/lit-recovery";
+import { registerVaultOnChain } from "@/lib/guardian-recovery-contract";
+import type { Address } from "viem";
 
 const pipelineSteps = [
   { id: "entropy", label: "Device entropy", icon: Shield },
@@ -42,6 +44,12 @@ export default function CreatePage() {
   const [litCiphertext, setLitCiphertext] = useState("");
   const [litDataHash, setLitDataHash] = useState("");
   const [guardianContract, setGuardianContract] = useState("0x20d9983AC7EDDe6e837c0928a6AD61fE77CE1997");
+  const [vaultCid, setVaultCid] = useState("");
+  const [guardiansInput, setGuardiansInput] = useState("");
+  const [threshold, setThreshold] = useState(2);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [vaultRegistered, setVaultRegistered] = useState(false);
+  const [registerTx, setRegisterTx] = useState("");
   const [decryptedPassword, setDecryptedPassword] = useState("");
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [evmContractConditions, setEvmContractConditions] = useState<any[] | null>(null);
@@ -65,6 +73,8 @@ export default function CreatePage() {
     setLitCiphertext("");
     setLitDataHash("");
     setDecryptedPassword("");
+    setVaultRegistered(false);
+    setRegisterTx("");
     setActiveStep(0);
 
     const steps = [0, 1, 2, 3];
@@ -102,6 +112,8 @@ export default function CreatePage() {
       setLitCiphertext(litRes.ciphertext);
       setLitDataHash(litRes.dataToEncryptHash);
       setEvmContractConditions(litRes.evmContractConditions);
+      // Per current spec: store the Lit ciphertext string in the contract's `ipfsCid` field (temporary until IPFS).
+      setVaultCid(litRes.ciphertext);
       console.log("✅ Lit encrypted DEK (ciphertext + dataToEncryptHash) ready.");
     } catch (err) {
       console.error("Password generation or encryption failed:", err);
@@ -110,9 +122,48 @@ export default function CreatePage() {
       setLitCiphertext("");
       setLitDataHash("");
       setEvmContractConditions(null);
+      setVaultCid("");
     } finally {
       setActiveStep(null);
       setIsGenerating(false);
+    }
+  };
+
+  const parseGuardians = (): Address[] => {
+    const parts = guardiansInput
+      .split(/[\n,]+/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return parts as Address[];
+  };
+
+  const handleRegisterVault = async () => {
+    setIsRegistering(true);
+    setVaultRegistered(false);
+    setRegisterTx("");
+    try {
+      const guardians = parseGuardians();
+      if (!guardianContract) throw new Error("Guardian contract address missing");
+      if (!vaultCid) throw new Error("Ciphertext missing. Generate & Lit-encrypt first.");
+      if (guardians.length === 0) throw new Error("Provide at least 1 guardian address");
+      if (threshold <= 0 || threshold > guardians.length) {
+        throw new Error("Threshold must be between 1 and number of guardians");
+      }
+
+      const { hash } = await registerVaultOnChain({
+        contractAddress: guardianContract as Address,
+        cid: vaultCid,
+        guardians,
+        threshold,
+      });
+      setRegisterTx(hash);
+      setVaultRegistered(true);
+      console.log("✅ registerVault tx:", hash);
+    } catch (err) {
+      console.error("registerVault failed:", err);
+      setVaultRegistered(false);
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -449,6 +500,60 @@ export default function CreatePage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Lit will check this contract on <span className="font-mono">{DEFAULT_LIT_CHAIN}</span> before releasing the key.
+                  </p>
+                </div>
+
+                {/* On-chain attestation (registerVault) */}
+                <div className="space-y-3 p-4 rounded-lg border border-foreground/10 bg-foreground/[0.01]">
+                  <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+                    On-chain attestation
+                  </p>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-mono text-muted-foreground">Ciphertext (stored in contract as ipfsCid)</Label>
+                    <Input
+                      value={vaultCid}
+                      onChange={(e) => setVaultCid(e.target.value)}
+                      className="font-mono text-xs h-10 bg-background border-foreground/10"
+                      placeholder="Generate password first to populate Lit ciphertext"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-mono text-muted-foreground">Guardians (comma or newline separated)</Label>
+                    <Input
+                      value={guardiansInput}
+                      onChange={(e) => setGuardiansInput(e.target.value)}
+                      className="font-mono text-xs h-10 bg-background border-foreground/10"
+                      placeholder="0xabc..., 0xdef..., 0x123..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-mono text-muted-foreground">Threshold</Label>
+                    <Input
+                      type="number"
+                      value={threshold}
+                      onChange={(e) => setThreshold(Number(e.target.value))}
+                      className="font-mono text-xs h-10 bg-background border-foreground/10"
+                      min={1}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Example: 3-of-5 guardians must approve for recovery.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 rounded-full border-foreground/20"
+                    onClick={handleRegisterVault}
+                    disabled={isRegistering || !vaultCid}
+                  >
+                    {isRegistering ? "Registering on-chain…" : vaultRegistered ? "Vault registered ✓" : "Register vault on-chain"}
+                  </Button>
+                  {registerTx && (
+                    <p className="text-xs text-muted-foreground font-mono break-all">
+                      tx: {registerTx}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Flow: generate password → Lit encrypts the master key (DEK) → ciphertext is saved here → then register guardians + threshold on-chain.
                   </p>
                 </div>
 
