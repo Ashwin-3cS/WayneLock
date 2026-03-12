@@ -1,4 +1,5 @@
 import type { EvmContractAcc } from "@lit-protocol/access-control-conditions-schemas";
+import "@/lib/polyfills";
 import { getLitClient } from "@/lib/lit-client";
 import { getEoaAuthContext } from "@/lib/lit-auth";
 

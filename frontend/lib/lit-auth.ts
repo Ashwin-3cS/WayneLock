@@ -2,7 +2,7 @@
 // Use deep imports for browser-safe storage.
 import { createAuthManager } from "@lit-protocol/auth/src/lib/AuthManager/auth-manager";
 import { localStorage } from "@lit-protocol/auth/src/lib/storage/localStorage";
-import { createWalletClient, custom, type WalletClient } from "viem";
+import { createWalletClient, custom, getAddress, type WalletClient } from "viem";
 import type { LitClient } from "@lit-protocol/lit-client";
 
 let authManager:
@@ -28,12 +28,15 @@ export async function getBrowserWalletClient(litClient: Awaited<LitClient>) {
   }
 
   // Request accounts (will prompt the user)
-  await ethereum.request({ method: "eth_requestAccounts" });
+  const accounts: string[] = await ethereum.request({ method: "eth_requestAccounts" });
+  const account = accounts?.[0];
+  if (!account) throw new Error("No wallet accounts returned from eth_requestAccounts");
 
   const { viemConfig } = litClient.getChainConfig();
   const walletClient = createWalletClient({
     chain: viemConfig,
     transport: custom(ethereum),
+    account: getAddress(account),
   }) as WalletClient;
 
   return walletClient;
