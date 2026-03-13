@@ -52,6 +52,13 @@ export const guardianRecoveryAbi = [
     inputs: [{ name: "owner", type: "address" }],
     outputs: [{ name: "", type: "bool" }],
   },
+  {
+    type: "function",
+    name: "getVaultCid",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ name: "", type: "string" }],
+  },
 ] as const;
 
 export function getCalibrationWalletClient() {
@@ -159,6 +166,18 @@ export async function readIsRecoveryApproved(params: {
     address: params.contractAddress,
     abi: guardianRecoveryAbi,
     functionName: "isRecoveryApprovedForOwner",
+    args: [params.owner],
+  });
+}
+
+export async function readVaultCid(params: {
+  contractAddress: Address;
+  owner: Address;
+}) {
+  return calibrationPublicClient.readContract({
+    address: params.contractAddress,
+    abi: guardianRecoveryAbi,
+    functionName: "getVaultCid",
     args: [params.owner],
   });
 }

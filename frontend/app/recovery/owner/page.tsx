@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
 import type { Address } from "viem";
 import { DEFAULT_LIT_CHAIN, litDecryptDek } from "@/lib/lit-recovery";
 import { decryptBlobWithDek } from "@/lib/password-encrypt";
-import { readIsRecoveryApproved, readRecoveryStatus, startRecoveryOnChain } from "@/lib/guardian-recovery-contract";
+import { readIsRecoveryApproved, readRecoveryStatus, startRecoveryOnChain, readVaultCid } from "@/lib/guardian-recovery-contract";
+import { fetchVaultBlob } from "@/lib/fwss";
 
 const DEFAULT_CONTRACT = "0x62efFe14a218032f57Df28f10DD730cE9507ca7C";
 
@@ -43,6 +44,7 @@ export default function OwnerRecoveryPage() {
   const [status, setStatus] = useState<string>("");
   const [isStarting, setIsStarting] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptedPassword, setDecryptedPassword] = useState("");
 
@@ -83,6 +85,34 @@ export default function OwnerRecoveryPage() {
       setStatus("Status check failed (see console)");
     } finally {
       setIsChecking(false);
+    }
+  };
+
+  const handleFetchVaultData = async () => {
+    setIsFetching(true);
+    setStatus("");
+    try {
+      if (!ownerAddress) throw new Error("Owner address required");
+      setStatus("Reading vault record from blockchain...");
+      const jsonStr = await readVaultCid({ contractAddress: contractAddress as Address, owner: ownerAddress as Address });
+      if (!jsonStr) throw new Error("No vault found on-chain for this owner.");
+      
+      const payload = JSON.parse(jsonStr);
+      setCiphertext(payload.litCiphertext || "");
+      setDataHash(payload.litDataHash || "");
+      
+      setStatus(`Found Filecoin pieces. Streaming from ${payload.serviceURL}...`);
+      const blobBytes = await fetchVaultBlob(payload.pieceCid, payload.serviceURL);
+      // Strip null bytes added by our 127-byte minimum-size padding before passing to atob()
+      const rawStr = new TextDecoder().decode(blobBytes).replace(/\0/g, '');
+      setEncryptedBlob(rawStr);
+      
+      setStatus("Successfully downloaded Filecoin warm storage vault and injected Lit parameters!");
+    } catch (err: any) {
+      console.error(err);
+      setStatus("Failed to fetch vault data: " + err.message);
+    } finally {
+      setIsFetching(false);
     }
   };
 
@@ -164,8 +194,11 @@ export default function OwnerRecoveryPage() {
                 <Button variant="outline" className="rounded-full" onClick={handleCheckStatus} disabled={isChecking}>
                   {isChecking ? "Checking…" : "Check approvals"}
                 </Button>
+                <Button variant="outline" className="rounded-full border-foreground/30 border" onClick={handleFetchVaultData} disabled={isFetching || !ownerAddress}>
+                  {isFetching ? "Downloading…" : "Fetch Vault Data"}
+                </Button>
               </div>
-              {status && <div className="text-sm text-muted-foreground font-mono break-all">{status}</div>}
+              {status && <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">{status}</div>}
             </CardContent>
           </Card>
 

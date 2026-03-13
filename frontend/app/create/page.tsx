@@ -19,8 +19,17 @@ import { cn } from "@/lib/utils";
 import { generatePassword } from "@/lib/password-generator";
 import { decryptBlobWithDek, encryptPasswordForLit } from "@/lib/password-encrypt";
 import { DEFAULT_LIT_CHAIN, litDecryptDek, litEncryptDek } from "@/lib/lit-recovery";
-import { registerVaultOnChain } from "@/lib/guardian-recovery-contract";
+import { registerVaultOnChain, getCalibrationWalletClient } from "@/lib/guardian-recovery-contract";
 import type { Address } from "viem";
+import { FundingUI } from "@/components/funding-ui";
+import { uploadVaultBlob } from "@/lib/fwss";
+import { createSynapseWalletClient } from "@/lib/synapse";
+
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 const pipelineSteps = [
   { id: "entropy", label: "Device entropy", icon: Shield },
@@ -50,6 +59,7 @@ export default function CreatePage() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [vaultRegistered, setVaultRegistered] = useState(false);
   const [registerTx, setRegisterTx] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
   const [decryptedPassword, setDecryptedPassword] = useState("");
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [evmContractConditions, setEvmContractConditions] = useState<any[] | null>(null);
@@ -144,15 +154,43 @@ export default function CreatePage() {
     try {
       const guardians = parseGuardians();
       if (!guardianContract) throw new Error("Guardian contract address missing");
-      if (!vaultCid) throw new Error("Ciphertext missing. Generate & Lit-encrypt first.");
+      if (!encryptedBlob) throw new Error("Encrypted vault blob missing. Generate & Lit-encrypt first.");
+      if (!litCiphertext || !litDataHash) throw new Error("Lit metadata missing. Generate password first.");
       if (guardians.length === 0) throw new Error("Provide at least 1 guardian address");
       if (threshold <= 0 || threshold > guardians.length) {
         throw new Error("Threshold must be between 1 and number of guardians");
       }
 
+      // 1. Get Wallet
+      const walletClient = getCalibrationWalletClient();
+      const accounts = await walletClient.getAddresses();
+      if (!accounts[0]) throw new Error("Wallet not connected");
+
+      setStatusMsg("Uploading encrypted vault to Filecoin network via Synapse Core...");
+      
+      const synapseWalletClient = createSynapseWalletClient(window.ethereum, accounts[0]);
+
+      // 2. Upload to Filecoin Warm Storage
+      const { pieceCid, serviceURL } = await uploadVaultBlob(
+          encryptedBlob, 
+          accounts[0], 
+          synapseWalletClient
+      );
+
+      // 3. Serialize piece metadata & Lit metadata into IPFS string field
+      const fwssUri = JSON.stringify({ 
+        pieceCid, 
+        serviceURL,
+        litCiphertext,
+        litDataHash 
+      });
+      
+      setStatusMsg("Registering vault dataset on-chain...");
+
+      // 4. Register on Guardian Contract using the serialized FWSS URI
       const { hash } = await registerVaultOnChain({
         contractAddress: guardianContract as Address,
-        cid: vaultCid,
+        cid: fwssUri,
         guardians,
         threshold,
       });
@@ -514,6 +552,9 @@ export default function CreatePage() {
                     Lit will check this contract on <span className="font-mono">{DEFAULT_LIT_CHAIN}</span> before releasing the key.
                   </p>
                 </div>
+                
+                {/* Filecoin Storage Funding */}
+                <FundingUI />
 
                 {/* On-chain attestation (registerVault) */}
                 <div className="space-y-3 p-4 rounded-lg border border-foreground/10 bg-foreground/[0.01]">
@@ -555,17 +596,17 @@ export default function CreatePage() {
                     variant="outline"
                     className="w-full h-11 rounded-full border-foreground/20"
                     onClick={handleRegisterVault}
-                    disabled={isRegistering || !vaultCid}
+                    disabled={isRegistering || !encryptedBlob}
                   >
-                    {isRegistering ? "Registering on-chain…" : vaultRegistered ? "Vault registered ✓" : "Register vault on-chain"}
+                    {isRegistering ? statusMsg || "Processing..." : vaultRegistered ? "Vault registered ✓" : "Upload to Filecoin & Register"}
                   </Button>
                   {registerTx && (
-                    <p className="text-xs text-muted-foreground font-mono break-all">
-                      tx: {registerTx}
+                    <p className="text-xs text-muted-foreground font-mono break-all text-green-600">
+                      success! tx: {registerTx}
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Flow: generate password → Lit encrypts the master key (DEK) → ciphertext is saved here → then register guardians + threshold on-chain.
+                    Flow: upload encrypted blob to Filecoin Warm Storage via Synapse → register pieces → save piece metadata & guardians on-chain.
                   </p>
                 </div>
 

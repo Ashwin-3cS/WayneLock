@@ -6,7 +6,7 @@ export const filecoinCalibration = defineChain({
   nativeCurrency: { name: "tFIL", symbol: "tFIL", decimals: 18 },
   rpcUrls: {
     default: {
-      http: ["https://rpc.ankr.com/filecoin_testnet"],
+      http: ["https://api.calibration.node.glif.io/rpc/v1"],
     },
   },
   blockExplorers: {

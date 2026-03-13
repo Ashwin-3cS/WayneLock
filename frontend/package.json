@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@filoz/synapse-core": "^0.3.0",
     "@hookform/resolvers": "^3.10.0",
     "@lit-protocol/auth": "^8.2.3",
     "@lit-protocol/auth-services": "^2.1.1",
