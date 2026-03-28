@@ -8,14 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Address } from "viem";
-import { approveRecoveryOnChain, readRecoveryStatus } from "@/lib/guardian-recovery-contract";
+import { approveRecoveryOnChain, readRecoveryStatus, DEFAULT_GUARDIAN_CONTRACT } from "@/lib/guardian-recovery-contract";
 import { DEFAULT_LIT_CHAIN } from "@/lib/lit-recovery";
-
-const DEFAULT_CONTRACT = "0x62efFe14a218032f57Df28f10DD730cE9507ca7C";
 
 export default function GuardianRecoveryPage() {
   const [isVisible, setIsVisible] = useState(false);
-  const [contractAddress, setContractAddress] = useState(DEFAULT_CONTRACT);
+  const [contractAddress, setContractAddress] = useState(DEFAULT_GUARDIAN_CONTRACT as string);
   const [ownerAddress, setOwnerAddress] = useState("");
 
   const [status, setStatus] = useState<string>("");
@@ -70,8 +68,14 @@ export default function GuardianRecoveryPage() {
             WayneLock
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/vault" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              My vault
+            </Link>
             <Link href="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Back to create
+              Add entry
+            </Link>
+            <Link href="/recovery/owner" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Owner recovery
             </Link>
           </div>
         </div>
