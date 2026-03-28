@@ -20,12 +20,18 @@ contract WayneLockGuardianRecovery {
     error NotGuardian();
     error RecoveryNotActive();
     error AlreadyApproved();
+    error EntryAlreadyExists();
+    error EntryNotFound();
+    error EmptyUid();
 
     event VaultRegistered(address indexed owner, string ipfsCid, uint8 threshold, address[] guardians);
     event VaultCidUpdated(address indexed owner, string ipfsCid);
     event RecoveryStarted(address indexed owner, uint256 indexed recoveryId);
     event RecoveryApproved(address indexed owner, uint256 indexed recoveryId, address indexed guardian, uint256 approvals);
     event RecoveryFinalized(address indexed owner, uint256 indexed recoveryId);
+    event EntryAdded(address indexed owner, string uid);
+    event EntryUpdated(address indexed owner, string uid);
+    event EntryRemoved(address indexed owner, string uid);
 
     struct VaultConfig {
         string ipfsCid; // pointer to encrypted blob / metadata (e.g. JSON on IPFS)
@@ -37,9 +43,19 @@ contract WayneLockGuardianRecovery {
         bool recoveryActive;
     }
 
+    struct PasswordEntry {
+        string metadataJson; // JSON: { pieceCid, serviceURL, litCiphertext, litDataHash }
+        uint256 createdAt;
+        bool exists;
+    }
+
     mapping(address => VaultConfig) private vaults; // owner => config
     mapping(address => address[]) private guardians; // owner => guardians list
     mapping(address => mapping(address => bool)) private isGuardian; // owner => guardian => bool
+
+    // UID-based password entries: owner => uid => entry
+    mapping(address => mapping(string => PasswordEntry)) private entries;
+    mapping(address => string[]) private entryUids; // owner => list of UIDs for enumeration
 
     // For each owner and recovery round, track if a guardian has approved.
     mapping(address => mapping(uint256 => mapping(address => bool))) private approved;
@@ -158,6 +174,51 @@ contract WayneLockGuardianRecovery {
     }
 
     // --------
+    // Password entry CRUD
+    // --------
+
+    /** Add a new password entry for msg.sender under `uid`. */
+    function addEntry(string calldata uid, string calldata metadataJson) external onlyInitialized(msg.sender) {
+        if (bytes(uid).length == 0) revert EmptyUid();
+        if (entries[msg.sender][uid].exists) revert EntryAlreadyExists();
+
+        entries[msg.sender][uid] = PasswordEntry({
+            metadataJson: metadataJson,
+            createdAt: block.timestamp,
+            exists: true
+        });
+        entryUids[msg.sender].push(uid);
+
+        emit EntryAdded(msg.sender, uid);
+    }
+
+    /** Update the metadata for an existing entry. */
+    function updateEntry(string calldata uid, string calldata metadataJson) external onlyInitialized(msg.sender) {
+        if (!entries[msg.sender][uid].exists) revert EntryNotFound();
+        entries[msg.sender][uid].metadataJson = metadataJson;
+        emit EntryUpdated(msg.sender, uid);
+    }
+
+    /** Remove an entry by uid (swap-and-pop from the UID list). */
+    function removeEntry(string calldata uid) external onlyInitialized(msg.sender) {
+        if (!entries[msg.sender][uid].exists) revert EntryNotFound();
+
+        delete entries[msg.sender][uid];
+
+        // Swap-and-pop to remove uid from the array
+        string[] storage uids = entryUids[msg.sender];
+        for (uint256 i = 0; i < uids.length; i++) {
+            if (keccak256(bytes(uids[i])) == keccak256(bytes(uid))) {
+                uids[i] = uids[uids.length - 1];
+                uids.pop();
+                break;
+            }
+        }
+
+        emit EntryRemoved(msg.sender, uid);
+    }
+
+    // --------
     // Views (for UI + Lit ACC)
     // --------
 
@@ -198,6 +259,31 @@ contract WayneLockGuardianRecovery {
         VaultConfig storage v = vaults[owner];
         if (!v.recoveryActive || v.recoveryId == 0) return false;
         return v.approvals >= v.threshold;
+    }
+
+    /** Get a single password entry by uid. */
+    function getEntry(address owner, string calldata uid)
+        external
+        view
+        returns (string memory metadataJson, uint256 createdAt, bool exists)
+    {
+        PasswordEntry storage e = entries[owner][uid];
+        return (e.metadataJson, e.createdAt, e.exists);
+    }
+
+    /** Get all UIDs for an owner. */
+    function getEntryUids(address owner) external view returns (string[] memory) {
+        return entryUids[owner];
+    }
+
+    /** Get the number of entries for an owner. */
+    function getEntryCount(address owner) external view returns (uint256) {
+        return entryUids[owner].length;
+    }
+
+    /** Check if a vault is initialized for an owner. */
+    function isVaultInitialized(address owner) external view returns (bool) {
+        return vaults[owner].initialized;
     }
 }
 
