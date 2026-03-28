@@ -4,11 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Download, KeyRound, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Address } from "viem";
 import { DEFAULT_LIT_CHAIN, litDecryptDek } from "@/lib/lit-recovery";
 import { decryptBlobWithDek } from "@/lib/password-encrypt";
 import {
@@ -20,6 +18,8 @@ import {
   DEFAULT_GUARDIAN_CONTRACT,
 } from "@/lib/guardian-recovery-contract";
 import { fetchVaultBlob } from "@/lib/fwss";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useWalletClient } from "wagmi";
 
 interface RecoveryEntry {
   uid: string;
@@ -30,8 +30,8 @@ interface RecoveryEntry {
 
 export default function OwnerRecoveryPage() {
   const [isVisible, setIsVisible] = useState(false);
-  const [contractAddress, setContractAddress] = useState(DEFAULT_GUARDIAN_CONTRACT as string);
-  const [ownerAddress, setOwnerAddress] = useState("");
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
 
   const [status, setStatus] = useState<string>("");
   const [isStarting, setIsStarting] = useState(false);
@@ -53,7 +53,7 @@ export default function OwnerRecoveryPage() {
     () => [
       {
         conditionType: "evmContract",
-        contractAddress,
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
         chain: DEFAULT_LIT_CHAIN,
         functionName: "isRecoveryApprovedForOwner",
         functionParams: [":userAddress"],
@@ -67,14 +67,19 @@ export default function OwnerRecoveryPage() {
         returnValueTest: { key: "", comparator: "=", value: "true" },
       },
     ],
-    [contractAddress]
+    []
   );
 
   const handleStartRecovery = async () => {
+    if (!address) return;
     setIsStarting(true);
     setStatus("");
     try {
-      const { hash } = await startRecoveryOnChain({ contractAddress: contractAddress as Address });
+      const { hash } = await startRecoveryOnChain({
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
+        walletClient: walletClient ?? undefined,
+        account: address,
+      });
       setStatus(`startRecovery tx: ${hash}`);
     } catch (err) {
       console.error(err);
@@ -85,12 +90,12 @@ export default function OwnerRecoveryPage() {
   };
 
   const handleCheckStatus = async () => {
+    if (!address) return;
     setIsChecking(true);
     setStatus("");
     try {
-      if (!ownerAddress) throw new Error("Owner address required");
-      const s = await readRecoveryStatus({ contractAddress: contractAddress as Address, owner: ownerAddress as Address });
-      const approved = await readIsRecoveryApproved({ contractAddress: contractAddress as Address, owner: ownerAddress as Address });
+      const s = await readRecoveryStatus({ contractAddress: DEFAULT_GUARDIAN_CONTRACT, owner: address });
+      const approved = await readIsRecoveryApproved({ contractAddress: DEFAULT_GUARDIAN_CONTRACT, owner: address });
       setStatus(
         `recoveryId=${s.recoveryId.toString()} active=${String(s.active)} approvals=${s.approvals.toString()} threshold=${s.threshold} approved=${String(approved)}`
       );
@@ -103,16 +108,16 @@ export default function OwnerRecoveryPage() {
   };
 
   const handleFetchEntries = async () => {
+    if (!address) return;
     setIsFetchingEntries(true);
     setStatus("");
     setEntries([]);
     try {
-      if (!ownerAddress) throw new Error("Owner address required");
       setStatus("Reading vault entries from blockchain...");
 
       const uids = await readEntryUids({
-        contractAddress: contractAddress as Address,
-        owner: ownerAddress as Address,
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
+        owner: address,
       });
 
       if (uids.length === 0) {
@@ -123,8 +128,8 @@ export default function OwnerRecoveryPage() {
       const loaded: RecoveryEntry[] = [];
       for (const uid of uids) {
         const entry = await readEntry({
-          contractAddress: contractAddress as Address,
-          owner: ownerAddress as Address,
+          contractAddress: DEFAULT_GUARDIAN_CONTRACT,
+          owner: address,
           uid,
         });
         if (entry.exists) {
@@ -194,6 +199,7 @@ export default function OwnerRecoveryPage() {
             <Link href="/recovery/guardian" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Guardian approval
             </Link>
+            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
           </div>
         </div>
       </header>
@@ -217,34 +223,37 @@ export default function OwnerRecoveryPage() {
         </div>
 
         <div className="max-w-3xl space-y-6">
-          <Card className="border-foreground/10">
-            <CardHeader>
-              <CardTitle className="font-display text-2xl">Recovery contract</CardTitle>
-              <CardDescription>Filecoin Calibration. Chain: {DEFAULT_LIT_CHAIN}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Contract address</Label>
-                <Input className="font-mono" value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Owner address (for status checks)</Label>
-                <Input className="font-mono" value={ownerAddress} onChange={(e) => setOwnerAddress(e.target.value)} placeholder="0x..." />
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button className="rounded-full" onClick={handleStartRecovery} disabled={isStarting}>
-                  {isStarting ? "Starting..." : "startRecovery()"}
-                </Button>
-                <Button variant="outline" className="rounded-full" onClick={handleCheckStatus} disabled={isChecking}>
-                  {isChecking ? "Checking..." : "Check approvals"}
-                </Button>
-                <Button variant="outline" className="rounded-full border-foreground/30 border" onClick={handleFetchEntries} disabled={isFetchingEntries || !ownerAddress}>
-                  {isFetchingEntries ? "Loading..." : "Fetch all entries"}
-                </Button>
-              </div>
-              {status && <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">{status}</div>}
-            </CardContent>
-          </Card>
+          {!isConnected && (
+            <Card className="border-foreground/10">
+              <CardContent className="py-12 text-center space-y-4">
+                <p className="text-muted-foreground">Connect your wallet to start the recovery process.</p>
+                <ConnectButton />
+              </CardContent>
+            </Card>
+          )}
+
+          {isConnected && (
+            <Card className="border-foreground/10">
+              <CardHeader>
+                <CardTitle className="font-display text-2xl">Recovery actions</CardTitle>
+                <CardDescription>Filecoin Calibration. Chain: {DEFAULT_LIT_CHAIN}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button className="rounded-full" onClick={handleStartRecovery} disabled={isStarting}>
+                    {isStarting ? "Starting..." : "Start recovery"}
+                  </Button>
+                  <Button variant="outline" className="rounded-full" onClick={handleCheckStatus} disabled={isChecking}>
+                    {isChecking ? "Checking..." : "Check approvals"}
+                  </Button>
+                  <Button variant="outline" className="rounded-full border-foreground/30 border" onClick={handleFetchEntries} disabled={isFetchingEntries}>
+                    {isFetchingEntries ? "Loading..." : "Fetch all entries"}
+                  </Button>
+                </div>
+                {status && <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">{status}</div>}
+              </CardContent>
+            </Card>
+          )}
 
           {entries.length > 0 && (
             <Card className="border-foreground/10">
