@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { generatePassword } from "@/lib/password-generator";
 import { decryptBlobWithDek, encryptPasswordForLit } from "@/lib/password-encrypt";
 import { DEFAULT_LIT_CHAIN, litDecryptDek, litEncryptDek } from "@/lib/lit-recovery";
-import { registerVaultOnChain, getCalibrationWalletClient } from "@/lib/guardian-recovery-contract";
+import { registerVaultOnChain, getCalibrationWalletClient, addEntryOnChain, readIsVaultInitialized, DEFAULT_GUARDIAN_CONTRACT } from "@/lib/guardian-recovery-contract";
 import type { Address } from "viem";
 import { FundingUI } from "@/components/funding-ui";
 import { uploadVaultBlob } from "@/lib/fwss";
@@ -52,7 +52,8 @@ export default function CreatePage() {
   const [encryptedBlob, setEncryptedBlob] = useState("");
   const [litCiphertext, setLitCiphertext] = useState("");
   const [litDataHash, setLitDataHash] = useState("");
-  const [guardianContract, setGuardianContract] = useState("0x62efFe14a218032f57Df28f10DD730cE9507ca7C");
+  const [entryUid, setEntryUid] = useState("");
+  const [guardianContract, setGuardianContract] = useState(DEFAULT_GUARDIAN_CONTRACT as string);
   const [vaultCid, setVaultCid] = useState("");
   const [guardiansInput, setGuardiansInput] = useState("");
   const [threshold, setThreshold] = useState(2);
@@ -156,6 +157,7 @@ export default function CreatePage() {
       if (!guardianContract) throw new Error("Guardian contract address missing");
       if (!encryptedBlob) throw new Error("Encrypted vault blob missing. Generate & Lit-encrypt first.");
       if (!litCiphertext || !litDataHash) throw new Error("Lit metadata missing. Generate password first.");
+      if (!entryUid.trim()) throw new Error("Entry label (UID) is required, e.g. 'google', 'facebook'");
       if (guardians.length === 0) throw new Error("Provide at least 1 guardian address");
       if (threshold <= 0 || threshold > guardians.length) {
         throw new Error("Threshold must be between 1 and number of guardians");
@@ -167,36 +169,51 @@ export default function CreatePage() {
       if (!accounts[0]) throw new Error("Wallet not connected");
 
       setStatusMsg("Uploading encrypted vault to Filecoin network via Synapse Core...");
-      
+
       const synapseWalletClient = createSynapseWalletClient(window.ethereum, accounts[0]);
 
       // 2. Upload to Filecoin Warm Storage
       const { pieceCid, serviceURL } = await uploadVaultBlob(
-          encryptedBlob, 
-          accounts[0], 
+          encryptedBlob,
+          accounts[0],
           synapseWalletClient
       );
 
-      // 3. Serialize piece metadata & Lit metadata into IPFS string field
-      const fwssUri = JSON.stringify({ 
-        pieceCid, 
+      // 3. Serialize piece metadata & Lit metadata into entry metadata JSON
+      const metadataJson = JSON.stringify({
+        pieceCid,
         serviceURL,
         litCiphertext,
-        litDataHash 
+        litDataHash
       });
-      
-      setStatusMsg("Registering vault dataset on-chain...");
 
-      // 4. Register on Guardian Contract using the serialized FWSS URI
-      const { hash } = await registerVaultOnChain({
+      // 4. Check if vault is already initialized
+      const isInitialized = await readIsVaultInitialized({
         contractAddress: guardianContract as Address,
-        cid: fwssUri,
-        guardians,
-        threshold,
+        owner: accounts[0],
       });
+
+      if (!isInitialized) {
+        setStatusMsg("Initializing vault with guardians on-chain...");
+        await registerVaultOnChain({
+          contractAddress: guardianContract as Address,
+          cid: "",
+          guardians,
+          threshold,
+        });
+      }
+
+      // 5. Add the entry under the UID
+      setStatusMsg(`Storing entry "${entryUid}" on-chain...`);
+      const { hash } = await addEntryOnChain({
+        contractAddress: guardianContract as Address,
+        uid: entryUid.trim(),
+        metadataJson,
+      });
+
       setRegisterTx(hash);
       setVaultRegistered(true);
-      console.log("✅ registerVault tx:", hash);
+      console.log(`✅ addEntry("${entryUid}") tx:`, hash);
     } catch (err) {
       console.error("registerVault failed:", err);
       setVaultRegistered(false);
@@ -272,6 +289,12 @@ export default function CreatePage() {
               Back to home
             </Link>
             <Link
+              href="/vault"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              My vault
+            </Link>
+            <Link
               href="/recovery/owner"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -284,7 +307,7 @@ export default function CreatePage() {
               Guardian approval
             </Link>
             <Button asChild size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
-              <Link href="/">Create vault</Link>
+              <Link href="/create">Create entry</Link>
             </Button>
           </div>
         </div>
@@ -562,6 +585,18 @@ export default function CreatePage() {
                     On-chain attestation
                   </p>
                   <div className="space-y-2">
+                    <Label className="text-xs font-mono text-muted-foreground">Entry label (UID)</Label>
+                    <Input
+                      value={entryUid}
+                      onChange={(e) => setEntryUid(e.target.value)}
+                      className="font-mono text-xs h-10 bg-background border-foreground/10"
+                      placeholder="e.g. google, facebook, ssh-key"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      A unique label to identify this password in your vault.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
                     <Label className="text-xs font-mono text-muted-foreground">Ciphertext (stored in contract as ipfsCid)</Label>
                     <Input
                       value={vaultCid}
@@ -596,9 +631,9 @@ export default function CreatePage() {
                     variant="outline"
                     className="w-full h-11 rounded-full border-foreground/20"
                     onClick={handleRegisterVault}
-                    disabled={isRegistering || !encryptedBlob}
+                    disabled={isRegistering || !encryptedBlob || !entryUid.trim()}
                   >
-                    {isRegistering ? statusMsg || "Processing..." : vaultRegistered ? "Vault registered ✓" : "Upload to Filecoin & Register"}
+                    {isRegistering ? statusMsg || "Processing..." : vaultRegistered ? `Entry "${entryUid}" stored ✓` : "Upload to Filecoin & Store Entry"}
                   </Button>
                   {registerTx && (
                     <p className="text-xs text-muted-foreground font-mono break-all text-green-600">
