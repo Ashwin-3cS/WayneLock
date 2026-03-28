@@ -19,17 +19,13 @@ import { cn } from "@/lib/utils";
 import { generatePassword } from "@/lib/password-generator";
 import { decryptBlobWithDek, encryptPasswordForLit } from "@/lib/password-encrypt";
 import { DEFAULT_LIT_CHAIN, litDecryptDek, litEncryptDek } from "@/lib/lit-recovery";
-import { registerVaultOnChain, getCalibrationWalletClient, addEntryOnChain, readIsVaultInitialized, DEFAULT_GUARDIAN_CONTRACT } from "@/lib/guardian-recovery-contract";
+import { registerVaultAndAddEntryOnChain, addEntryOnChain, readIsVaultInitialized, DEFAULT_GUARDIAN_CONTRACT } from "@/lib/guardian-recovery-contract";
 import type { Address } from "viem";
 import { FundingUI } from "@/components/funding-ui";
 import { uploadVaultBlob } from "@/lib/fwss";
 import { createSynapseWalletClient } from "@/lib/synapse";
-
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useWalletClient } from "wagmi";
 
 const pipelineSteps = [
   { id: "entropy", label: "Device entropy", icon: Shield },
@@ -39,6 +35,8 @@ const pipelineSteps = [
 ];
 
 export default function CreatePage() {
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [password, setPassword] = useState("");
   const [length, setLength] = useState([20]);
   const [uppercase, setUppercase] = useState(true);
@@ -158,28 +156,25 @@ export default function CreatePage() {
       if (!encryptedBlob) throw new Error("Encrypted vault blob missing. Generate & Lit-encrypt first.");
       if (!litCiphertext || !litDataHash) throw new Error("Lit metadata missing. Generate password first.");
       if (!entryUid.trim()) throw new Error("Entry label (UID) is required, e.g. 'google', 'facebook'");
+      if (!isConnected || !address) throw new Error("Connect your wallet first");
       if (guardians.length === 0) throw new Error("Provide at least 1 guardian address");
       if (threshold <= 0 || threshold > guardians.length) {
         throw new Error("Threshold must be between 1 and number of guardians");
       }
 
-      // 1. Get Wallet
-      const walletClient = getCalibrationWalletClient();
-      const accounts = await walletClient.getAddresses();
-      if (!accounts[0]) throw new Error("Wallet not connected");
-
       setStatusMsg("Uploading encrypted vault to Filecoin network via Synapse Core...");
 
-      const synapseWalletClient = createSynapseWalletClient(window.ethereum, accounts[0]);
+      const ethereum = (globalThis as any).ethereum;
+      const synapseWalletClient = createSynapseWalletClient(ethereum, address);
 
-      // 2. Upload to Filecoin Warm Storage
+      // 1. Upload to Filecoin Warm Storage
       const { pieceCid, serviceURL } = await uploadVaultBlob(
           encryptedBlob,
-          accounts[0],
+          address,
           synapseWalletClient
       );
 
-      // 3. Serialize piece metadata & Lit metadata into entry metadata JSON
+      // 2. Serialize piece metadata & Lit metadata
       const metadataJson = JSON.stringify({
         pieceCid,
         serviceURL,
@@ -187,33 +182,41 @@ export default function CreatePage() {
         litDataHash
       });
 
-      // 4. Check if vault is already initialized
+      // 3. Check if vault is already initialized
       const isInitialized = await readIsVaultInitialized({
         contractAddress: guardianContract as Address,
-        owner: accounts[0],
+        owner: address,
       });
 
       if (!isInitialized) {
-        setStatusMsg("Initializing vault with guardians on-chain...");
-        await registerVaultOnChain({
+        // First time: single call for vault init + entry
+        setStatusMsg("Registering vault & storing entry on-chain...");
+        const { hash } = await registerVaultAndAddEntryOnChain({
           contractAddress: guardianContract as Address,
           cid: "",
           guardians,
           threshold,
+          uid: entryUid.trim(),
+          metadataJson,
+          walletClient: walletClient ?? undefined,
+          account: address,
         });
+        setRegisterTx(hash);
+      } else {
+        // Subsequent: just add entry
+        setStatusMsg(`Storing entry "${entryUid}" on-chain...`);
+        const { hash } = await addEntryOnChain({
+          contractAddress: guardianContract as Address,
+          uid: entryUid.trim(),
+          metadataJson,
+          walletClient: walletClient ?? undefined,
+          account: address,
+        });
+        setRegisterTx(hash);
       }
 
-      // 5. Add the entry under the UID
-      setStatusMsg(`Storing entry "${entryUid}" on-chain...`);
-      const { hash } = await addEntryOnChain({
-        contractAddress: guardianContract as Address,
-        uid: entryUid.trim(),
-        metadataJson,
-      });
-
-      setRegisterTx(hash);
       setVaultRegistered(true);
-      console.log(`✅ addEntry("${entryUid}") tx:`, hash);
+      console.log(`✅ Entry "${entryUid}" stored on-chain`);
     } catch (err) {
       console.error("registerVault failed:", err);
       setVaultRegistered(false);
@@ -306,9 +309,7 @@ export default function CreatePage() {
             >
               Guardian approval
             </Link>
-            <Button asChild size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
-              <Link href="/create">Create entry</Link>
-            </Button>
+            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
           </div>
         </div>
       </header>
@@ -562,20 +563,6 @@ export default function CreatePage() {
                   </div>
                 </div>
 
-                {/* Recovery contract (Lit ACC) */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-mono">Guardian recovery contract</Label>
-                  <Input
-                    value={guardianContract}
-                    onChange={(e) => setGuardianContract(e.target.value)}
-                    className="font-mono text-xs h-11 bg-background border-foreground/10"
-                    placeholder="0x… (WayneLockGuardianRecovery on Filecoin Calibration)"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Lit will check this contract on <span className="font-mono">{DEFAULT_LIT_CHAIN}</span> before releasing the key.
-                  </p>
-                </div>
-                
                 {/* Filecoin Storage Funding */}
                 <FundingUI />
 
@@ -595,15 +582,6 @@ export default function CreatePage() {
                     <p className="text-xs text-muted-foreground">
                       A unique label to identify this password in your vault.
                     </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-mono text-muted-foreground">Ciphertext (stored in contract as ipfsCid)</Label>
-                    <Input
-                      value={vaultCid}
-                      onChange={(e) => setVaultCid(e.target.value)}
-                      className="font-mono text-xs h-10 bg-background border-foreground/10"
-                      placeholder="Generate password first to populate Lit ciphertext"
-                    />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-mono text-muted-foreground">Guardians (comma or newline separated)</Label>
@@ -631,7 +609,7 @@ export default function CreatePage() {
                     variant="outline"
                     className="w-full h-11 rounded-full border-foreground/20"
                     onClick={handleRegisterVault}
-                    disabled={isRegistering || !encryptedBlob || !entryUid.trim()}
+                    disabled={isRegistering || !encryptedBlob || !entryUid.trim() || !isConnected}
                   >
                     {isRegistering ? statusMsg || "Processing..." : vaultRegistered ? `Entry "${entryUid}" stored ✓` : "Upload to Filecoin & Store Entry"}
                   </Button>
