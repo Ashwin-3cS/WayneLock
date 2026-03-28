@@ -6,55 +6,69 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Copy, Download, KeyRound, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Address } from "viem";
 import { DEFAULT_LIT_CHAIN, litDecryptDek } from "@/lib/lit-recovery";
 import { decryptBlobWithDek } from "@/lib/password-encrypt";
-import { readIsRecoveryApproved, readRecoveryStatus, startRecoveryOnChain, readVaultCid } from "@/lib/guardian-recovery-contract";
+import {
+  readIsRecoveryApproved,
+  readRecoveryStatus,
+  startRecoveryOnChain,
+  readEntryUids,
+  readEntry,
+  DEFAULT_GUARDIAN_CONTRACT,
+} from "@/lib/guardian-recovery-contract";
 import { fetchVaultBlob } from "@/lib/fwss";
 
-const DEFAULT_CONTRACT = "0x62efFe14a218032f57Df28f10DD730cE9507ca7C";
+interface RecoveryEntry {
+  uid: string;
+  metadataJson: string;
+  createdAt: bigint;
+  decryptedPassword?: string;
+}
 
 export default function OwnerRecoveryPage() {
   const [isVisible, setIsVisible] = useState(false);
-  const [contractAddress, setContractAddress] = useState(DEFAULT_CONTRACT);
+  const [contractAddress, setContractAddress] = useState(DEFAULT_GUARDIAN_CONTRACT as string);
   const [ownerAddress, setOwnerAddress] = useState("");
-
-  const [ciphertext, setCiphertext] = useState("");
-  const [dataHash, setDataHash] = useState("");
-  const [encryptedBlob, setEncryptedBlob] = useState("");
-  const [evmContractConditions] = useState<any[]>([
-    {
-      conditionType: "evmContract",
-      contractAddress: DEFAULT_CONTRACT,
-      chain: DEFAULT_LIT_CHAIN,
-      functionName: "isRecoveryApprovedForOwner",
-      functionParams: [":userAddress"],
-      functionAbi: {
-        name: "isRecoveryApprovedForOwner",
-        type: "function",
-        stateMutability: "view",
-        inputs: [{ name: "owner", type: "address", internalType: "address" }],
-        outputs: [{ name: "", type: "bool", internalType: "bool" }],
-      },
-      returnValueTest: { key: "", comparator: "=", value: "true" },
-    },
-  ]);
 
   const [status, setStatus] = useState<string>("");
   const [isStarting, setIsStarting] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
-  const [isFetching, setIsFetching] = useState(false);
-  const [isDecrypting, setIsDecrypting] = useState(false);
-  const [decryptedPassword, setDecryptedPassword] = useState("");
+  const [isFetchingEntries, setIsFetchingEntries] = useState(false);
+  const [decryptingUid, setDecryptingUid] = useState<string | null>(null);
+  const [entries, setEntries] = useState<RecoveryEntry[]>([]);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => setIsVisible(true), []);
 
-  const conds = useMemo(() => {
-    const next = [...evmContractConditions];
-    next[0] = { ...next[0], contractAddress };
-    return next;
-  }, [contractAddress, evmContractConditions]);
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const evmContractConditions = useMemo(
+    () => [
+      {
+        conditionType: "evmContract",
+        contractAddress,
+        chain: DEFAULT_LIT_CHAIN,
+        functionName: "isRecoveryApprovedForOwner",
+        functionParams: [":userAddress"],
+        functionAbi: {
+          name: "isRecoveryApprovedForOwner",
+          type: "function",
+          stateMutability: "view",
+          inputs: [{ name: "owner", type: "address", internalType: "address" }],
+          outputs: [{ name: "", type: "bool", internalType: "bool" }],
+        },
+        returnValueTest: { key: "", comparator: "=", value: "true" },
+      },
+    ],
+    [contractAddress]
+  );
 
   const handleStartRecovery = async () => {
     setIsStarting(true);
@@ -88,54 +102,78 @@ export default function OwnerRecoveryPage() {
     }
   };
 
-  const handleFetchVaultData = async () => {
-    setIsFetching(true);
+  const handleFetchEntries = async () => {
+    setIsFetchingEntries(true);
     setStatus("");
+    setEntries([]);
     try {
       if (!ownerAddress) throw new Error("Owner address required");
-      setStatus("Reading vault record from blockchain...");
-      const jsonStr = await readVaultCid({ contractAddress: contractAddress as Address, owner: ownerAddress as Address });
-      if (!jsonStr) throw new Error("No vault found on-chain for this owner.");
-      
-      const payload = JSON.parse(jsonStr);
-      setCiphertext(payload.litCiphertext || "");
-      setDataHash(payload.litDataHash || "");
-      
-      setStatus(`Found Filecoin pieces. Streaming from ${payload.serviceURL}...`);
-      const blobBytes = await fetchVaultBlob(payload.pieceCid, payload.serviceURL);
-      // Strip null bytes added by our 127-byte minimum-size padding before passing to atob()
-      const rawStr = new TextDecoder().decode(blobBytes).replace(/\0/g, '');
-      setEncryptedBlob(rawStr);
-      
-      setStatus("Successfully downloaded Filecoin warm storage vault and injected Lit parameters!");
+      setStatus("Reading vault entries from blockchain...");
+
+      const uids = await readEntryUids({
+        contractAddress: contractAddress as Address,
+        owner: ownerAddress as Address,
+      });
+
+      if (uids.length === 0) {
+        setStatus("No entries found for this owner.");
+        return;
+      }
+
+      const loaded: RecoveryEntry[] = [];
+      for (const uid of uids) {
+        const entry = await readEntry({
+          contractAddress: contractAddress as Address,
+          owner: ownerAddress as Address,
+          uid,
+        });
+        if (entry.exists) {
+          loaded.push({ uid, metadataJson: entry.metadataJson, createdAt: entry.createdAt });
+        }
+      }
+      setEntries(loaded);
+      setStatus(`Found ${loaded.length} entr${loaded.length === 1 ? "y" : "ies"}. Decrypt individually below.`);
     } catch (err: any) {
       console.error(err);
-      setStatus("Failed to fetch vault data: " + err.message);
+      setStatus("Failed to fetch entries: " + err.message);
     } finally {
-      setIsFetching(false);
+      setIsFetchingEntries(false);
     }
   };
 
-  const handleDecrypt = async () => {
-    setIsDecrypting(true);
-    setDecryptedPassword("");
-    setStatus("");
+  const handleDecryptEntry = async (uid: string) => {
+    setDecryptingUid(uid);
     try {
+      const entry = entries.find((e) => e.uid === uid);
+      if (!entry) throw new Error("Entry not found");
+
+      const payload = JSON.parse(entry.metadataJson);
+
+      // Fetch encrypted blob from Filecoin
+      const blobBytes = await fetchVaultBlob(payload.pieceCid, payload.serviceURL);
+      const encryptedBlob = new TextDecoder().decode(blobBytes).replace(/\0/g, "");
+
+      // Decrypt DEK via Lit
       const dekBytes = await litDecryptDek({
-        ciphertext,
-        dataToEncryptHash: dataHash,
-        evmContractConditions: conds as any,
+        ciphertext: payload.litCiphertext,
+        dataToEncryptHash: payload.litDataHash,
+        evmContractConditions: evmContractConditions as any,
         chain: DEFAULT_LIT_CHAIN,
       });
       const dekB64 = btoa(String.fromCharCode(...dekBytes));
+
+      // Decrypt password
       const plain = await decryptBlobWithDek(encryptedBlob, dekB64);
-      setDecryptedPassword(plain);
-      setStatus("Decrypted successfully (Lit conditions satisfied).");
-    } catch (err) {
-      console.error(err);
-      setStatus("Decrypt failed (likely guardians threshold not met yet).");
+
+      setEntries((prev) =>
+        prev.map((e) => (e.uid === uid ? { ...e, decryptedPassword: plain } : e))
+      );
+      setStatus(`Decrypted "${uid}" successfully.`);
+    } catch (err: any) {
+      console.error(`Decrypt "${uid}" failed:`, err);
+      setStatus(`Decrypt "${uid}" failed (guardian threshold may not be met yet).`);
     } finally {
-      setIsDecrypting(false);
+      setDecryptingUid(null);
     }
   };
 
@@ -147,8 +185,14 @@ export default function OwnerRecoveryPage() {
             WayneLock
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/vault" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              My vault
+            </Link>
             <Link href="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Back to create
+              Add entry
+            </Link>
+            <Link href="/recovery/guardian" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Guardian approval
             </Link>
           </div>
         </div>
@@ -168,7 +212,7 @@ export default function OwnerRecoveryPage() {
           <h1 className="text-4xl lg:text-6xl font-display tracking-tight">
             Start recovery.
             <br />
-            <span className="text-muted-foreground">Decrypt only after approvals.</span>
+            <span className="text-muted-foreground">Decrypt entries after approvals.</span>
           </h1>
         </div>
 
@@ -189,55 +233,91 @@ export default function OwnerRecoveryPage() {
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button className="rounded-full" onClick={handleStartRecovery} disabled={isStarting}>
-                  {isStarting ? "Starting…" : "startRecovery()"}
+                  {isStarting ? "Starting..." : "startRecovery()"}
                 </Button>
                 <Button variant="outline" className="rounded-full" onClick={handleCheckStatus} disabled={isChecking}>
-                  {isChecking ? "Checking…" : "Check approvals"}
+                  {isChecking ? "Checking..." : "Check approvals"}
                 </Button>
-                <Button variant="outline" className="rounded-full border-foreground/30 border" onClick={handleFetchVaultData} disabled={isFetching || !ownerAddress}>
-                  {isFetching ? "Downloading…" : "Fetch Vault Data"}
+                <Button variant="outline" className="rounded-full border-foreground/30 border" onClick={handleFetchEntries} disabled={isFetchingEntries || !ownerAddress}>
+                  {isFetchingEntries ? "Loading..." : "Fetch all entries"}
                 </Button>
               </div>
               {status && <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">{status}</div>}
             </CardContent>
           </Card>
 
-          <Card className="border-foreground/10">
-            <CardHeader>
-              <CardTitle className="font-display text-2xl">Decrypt with Lit</CardTitle>
-              <CardDescription>Paste values from the create flow (ciphertext/hash/blob).</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Lit ciphertext</Label>
-                <Input className="font-mono text-xs" value={ciphertext} onChange={(e) => setCiphertext(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">dataToEncryptHash</Label>
-                <Input className="font-mono text-xs" value={dataHash} onChange={(e) => setDataHash(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Encrypted blob</Label>
-                <Input className="font-mono text-xs" value={encryptedBlob} onChange={(e) => setEncryptedBlob(e.target.value)} />
-              </div>
-              <Button
-                className="w-full rounded-full"
-                onClick={handleDecrypt}
-                disabled={isDecrypting || !ciphertext || !dataHash || !encryptedBlob}
-              >
-                {isDecrypting ? "Decrypting…" : "Decrypt (requires guardian threshold)"}
-              </Button>
-              {decryptedPassword && (
-                <div className="p-4 rounded-lg border border-foreground/10 bg-background">
-                  <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Decrypted</p>
-                  <div className="font-mono break-all">{decryptedPassword}</div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {entries.length > 0 && (
+            <Card className="border-foreground/10">
+              <CardHeader>
+                <CardTitle className="font-display text-2xl">Vault entries</CardTitle>
+                <CardDescription>
+                  {entries.length} entr{entries.length !== 1 ? "ies" : "y"} found. Decrypt individually after guardian threshold is met.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {entries.map((entry) => (
+                  <div
+                    key={entry.uid}
+                    className="p-4 rounded-lg border border-foreground/10 bg-foreground/[0.02] space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <KeyRound className="w-5 h-5 text-foreground/50" />
+                        <span className="font-mono text-sm font-medium">{entry.uid}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {new Date(Number(entry.createdAt) * 1000).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {entry.decryptedPassword ? (
+                      <div className="flex gap-2">
+                        <Input
+                          readOnly
+                          value={entry.decryptedPassword}
+                          className="font-mono text-sm h-10 bg-background border-foreground/10"
+                        />
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-10 w-10 shrink-0"
+                          onClick={() => handleCopy(entry.decryptedPassword!, entry.uid)}
+                          aria-label="Copy password"
+                        >
+                          {copied === entry.uid ? (
+                            <span className="text-xs text-green-600">OK</span>
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-full border-foreground/20"
+                        onClick={() => handleDecryptEntry(entry.uid)}
+                        disabled={decryptingUid === entry.uid}
+                      >
+                        {decryptingUid === entry.uid ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Decrypting...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Decrypt "{entry.uid}"
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </main>
   );
 }
-
