@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -17,16 +16,16 @@ import { cn } from "@/lib/utils";
 import { decryptBlobWithDek } from "@/lib/password-encrypt";
 import { DEFAULT_LIT_CHAIN, litDecryptDek } from "@/lib/lit-recovery";
 import {
-  getCalibrationWalletClient,
   readEntryUids,
   readEntry,
   removeEntryOnChain,
-  readRecoveryStatus,
   readIsVaultInitialized,
   DEFAULT_GUARDIAN_CONTRACT,
 } from "@/lib/guardian-recovery-contract";
 import type { Address } from "viem";
 import { fetchVaultBlob } from "@/lib/fwss";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useWalletClient } from "wagmi";
 
 interface EntryData {
   uid: string;
@@ -37,8 +36,8 @@ interface EntryData {
 
 export default function VaultPage() {
   const [isVisible, setIsVisible] = useState(false);
-  const [contractAddress, setContractAddress] = useState(DEFAULT_GUARDIAN_CONTRACT as string);
-  const [ownerAddress, setOwnerAddress] = useState("");
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [entries, setEntries] = useState<EntryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isVaultInit, setIsVaultInit] = useState<boolean | null>(null);
@@ -55,26 +54,15 @@ export default function VaultPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const handleConnect = async () => {
-    try {
-      const walletClient = getCalibrationWalletClient();
-      await (globalThis as any).ethereum.request({ method: "eth_requestAccounts" });
-      const [account] = await walletClient.getAddresses();
-      if (account) setOwnerAddress(account);
-    } catch (err) {
-      console.error("Wallet connect failed:", err);
-    }
-  };
-
-  const handleLoadEntries = async () => {
-    if (!ownerAddress) return;
+  const loadEntries = useCallback(async () => {
+    if (!address) return;
     setIsLoading(true);
     setStatusMsg("");
     setEntries([]);
     try {
       const initialized = await readIsVaultInitialized({
-        contractAddress: contractAddress as Address,
-        owner: ownerAddress as Address,
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
+        owner: address,
       });
       setIsVaultInit(initialized);
       if (!initialized) {
@@ -83,15 +71,15 @@ export default function VaultPage() {
       }
 
       const uids = await readEntryUids({
-        contractAddress: contractAddress as Address,
-        owner: ownerAddress as Address,
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
+        owner: address,
       });
 
       const loaded: EntryData[] = [];
       for (const uid of uids) {
         const entry = await readEntry({
-          contractAddress: contractAddress as Address,
-          owner: ownerAddress as Address,
+          contractAddress: DEFAULT_GUARDIAN_CONTRACT,
+          owner: address,
           uid,
         });
         if (entry.exists) {
@@ -110,9 +98,21 @@ export default function VaultPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [address]);
+
+  // Auto-load entries when wallet connects
+  useEffect(() => {
+    if (isConnected && address) {
+      loadEntries();
+    } else {
+      setEntries([]);
+      setIsVaultInit(null);
+      setStatusMsg("");
+    }
+  }, [isConnected, address, loadEntries]);
 
   const handleDecryptEntry = async (uid: string) => {
+    if (!address) return;
     setDecryptingUid(uid);
     try {
       const entry = entries.find((e) => e.uid === uid);
@@ -120,11 +120,10 @@ export default function VaultPage() {
 
       const payload = JSON.parse(entry.metadataJson);
 
-      // Build Lit access control conditions
       const evmContractConditions = [
         {
           conditionType: "evmContract",
-          contractAddress,
+          contractAddress: DEFAULT_GUARDIAN_CONTRACT,
           chain: DEFAULT_LIT_CHAIN,
           functionName: "isRecoveryApprovedForOwner",
           functionParams: [":userAddress"],
@@ -139,11 +138,9 @@ export default function VaultPage() {
         },
       ];
 
-      // Fetch encrypted blob from Filecoin
       const blobBytes = await fetchVaultBlob(payload.pieceCid, payload.serviceURL);
       const encryptedBlob = new TextDecoder().decode(blobBytes).replace(/\0/g, "");
 
-      // Decrypt DEK via Lit
       const dekBytes = await litDecryptDek({
         ciphertext: payload.litCiphertext,
         dataToEncryptHash: payload.litDataHash,
@@ -151,8 +148,6 @@ export default function VaultPage() {
         chain: DEFAULT_LIT_CHAIN,
       });
       const dekB64 = btoa(String.fromCharCode(...dekBytes));
-
-      // Decrypt password
       const plain = await decryptBlobWithDek(encryptedBlob, dekB64);
 
       setEntries((prev) =>
@@ -171,8 +166,10 @@ export default function VaultPage() {
     setRemovingUid(uid);
     try {
       await removeEntryOnChain({
-        contractAddress: contractAddress as Address,
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
         uid,
+        walletClient: walletClient ?? undefined,
+        account: address,
       });
       setEntries((prev) => prev.filter((e) => e.uid !== uid));
       setStatusMsg(`Entry "${uid}" removed.`);
@@ -195,15 +192,13 @@ export default function VaultPage() {
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Home
             </Link>
+            <Link href="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Add entry
+            </Link>
             <Link href="/recovery/owner" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Owner recovery
+              Recovery
             </Link>
-            <Link href="/recovery/guardian" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Guardian approval
-            </Link>
-            <Button asChild size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
-              <Link href="/create">Add entry</Link>
-            </Button>
+            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
           </div>
         </div>
       </header>
@@ -227,44 +222,31 @@ export default function VaultPage() {
         </div>
 
         <div className="max-w-3xl space-y-6">
-          <Card className="border-foreground/10">
-            <CardHeader>
-              <CardTitle className="font-display text-2xl">Connect & load</CardTitle>
-              <CardDescription>Connect your wallet to view stored password entries.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Contract address</Label>
-                <Input className="font-mono text-xs" value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Owner address</Label>
-                <div className="flex gap-2">
-                  <Input className="font-mono text-xs" value={ownerAddress} onChange={(e) => setOwnerAddress(e.target.value)} placeholder="0x..." />
-                  <Button variant="outline" className="shrink-0 rounded-full" onClick={handleConnect}>
-                    Connect
-                  </Button>
-                </div>
-              </div>
-              <Button className="w-full rounded-full" onClick={handleLoadEntries} disabled={isLoading || !ownerAddress}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load entries"
-                )}
-              </Button>
-              {statusMsg && (
-                <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">
-                  {statusMsg}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {!isConnected && (
+            <Card className="border-foreground/10">
+              <CardContent className="py-12 text-center space-y-4">
+                <p className="text-muted-foreground">Connect your wallet to view stored password entries.</p>
+                <ConnectButton />
+              </CardContent>
+            </Card>
+          )}
 
-          {entries.length > 0 && (
+          {isConnected && isLoading && (
+            <Card className="border-foreground/10">
+              <CardContent className="py-12 text-center">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3" />
+                <p className="text-muted-foreground">Loading entries...</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {isConnected && statusMsg && !isLoading && (
+            <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">
+              {statusMsg}
+            </div>
+          )}
+
+          {isConnected && entries.length > 0 && (
             <Card className="border-foreground/10">
               <CardHeader>
                 <CardTitle className="font-display text-2xl">Stored entries</CardTitle>
@@ -349,7 +331,7 @@ export default function VaultPage() {
             </Card>
           )}
 
-          {isVaultInit === false && (
+          {isConnected && isVaultInit === false && !isLoading && (
             <Card className="border-foreground/10">
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground mb-4">No vault found for this address.</p>
