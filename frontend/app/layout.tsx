@@ -4,6 +4,7 @@ import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from 'next/font/goo
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { Polyfills } from "./polyfills"
+import { Providers } from "./providers"
 
 const instrumentSans = Instrument_Sans({ 
   subsets: ["latin"],
@@ -36,7 +37,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <Polyfills />
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <Analytics />
       </body>
     </html>
