@@ -4,10 +4,11 @@ import {
   custom,
   http,
   type Address,
+  type WalletClient,
 } from "viem";
 import { filecoinCalibration } from "@/lib/filecoin-calibration";
 
-export const DEFAULT_GUARDIAN_CONTRACT = "0xC94B7E9FD383aa837FaD12Dbc1FbaD6b8B73DA66" as Address;
+export const DEFAULT_GUARDIAN_CONTRACT = "0x0d0e5142591327525A77bF7830936E31Cc4c4C55" as Address;
 
 export const guardianRecoveryAbi = [
   {
@@ -18,6 +19,19 @@ export const guardianRecoveryAbi = [
       { name: "ipfsCid", type: "string" },
       { name: "newGuardians", type: "address[]" },
       { name: "threshold", type: "uint8" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "registerVaultAndAddEntry",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "ipfsCid", type: "string" },
+      { name: "newGuardians", type: "address[]" },
+      { name: "threshold", type: "uint8" },
+      { name: "uid", type: "string" },
+      { name: "metadataJson", type: "string" },
     ],
     outputs: [],
   },
@@ -126,6 +140,8 @@ export const guardianRecoveryAbi = [
   },
 ] as const;
 
+// ---- Wallet Helpers ----
+
 export function getCalibrationWalletClient() {
   const ethereum = (globalThis as any).ethereum;
   if (!ethereum) {
@@ -142,47 +158,87 @@ export const calibrationPublicClient = createPublicClient({
   transport: http(),
 });
 
+/** Get a wallet client - uses provided one or falls back to window.ethereum */
+function resolveWallet(walletClient?: WalletClient) {
+  return walletClient ?? getCalibrationWalletClient();
+}
+
+/** Get account - uses provided one or fetches from wallet */
+async function resolveAccount(account?: Address, walletClient?: WalletClient): Promise<Address> {
+  if (account) return account;
+  const wc = resolveWallet(walletClient);
+  await (globalThis as any).ethereum?.request({ method: "eth_requestAccounts" });
+  const [addr] = await wc.getAddresses();
+  if (!addr) throw new Error("No wallet account available.");
+  return addr;
+}
+
+// ---- Write Functions ----
+
 export async function registerVaultOnChain(params: {
   contractAddress: Address;
   cid: string;
   guardians: Address[];
   threshold: number;
+  walletClient?: WalletClient;
+  account?: Address;
 }) {
-  const walletClient = getCalibrationWalletClient();
-  await (globalThis as any).ethereum.request({ method: "eth_requestAccounts" });
+  const wc = resolveWallet(params.walletClient);
+  const account = await resolveAccount(params.account, wc);
 
-  const [account] = await walletClient.getAddresses();
-  if (!account) throw new Error("No wallet account available.");
-
-  const hash = await walletClient.writeContract({
+  const hash = await wc.writeContract({
+    chain: filecoinCalibration,
     account,
     address: params.contractAddress,
     abi: guardianRecoveryAbi,
     functionName: "registerVault",
     args: [params.cid, params.guardians, params.threshold],
   });
+  const receipt = await calibrationPublicClient.waitForTransactionReceipt({ hash });
+  return { hash, receipt };
+}
 
+export async function registerVaultAndAddEntryOnChain(params: {
+  contractAddress: Address;
+  cid: string;
+  guardians: Address[];
+  threshold: number;
+  uid: string;
+  metadataJson: string;
+  walletClient?: WalletClient;
+  account?: Address;
+}) {
+  const wc = resolveWallet(params.walletClient);
+  const account = await resolveAccount(params.account, wc);
+
+  const hash = await wc.writeContract({
+    chain: filecoinCalibration,
+    account,
+    address: params.contractAddress,
+    abi: guardianRecoveryAbi,
+    functionName: "registerVaultAndAddEntry",
+    args: [params.cid, params.guardians, params.threshold, params.uid, params.metadataJson],
+  });
   const receipt = await calibrationPublicClient.waitForTransactionReceipt({ hash });
   return { hash, receipt };
 }
 
 export async function startRecoveryOnChain(params: {
   contractAddress: Address;
+  walletClient?: WalletClient;
+  account?: Address;
 }) {
-  const walletClient = getCalibrationWalletClient();
-  await (globalThis as any).ethereum.request({ method: "eth_requestAccounts" });
+  const wc = resolveWallet(params.walletClient);
+  const account = await resolveAccount(params.account, wc);
 
-  const [account] = await walletClient.getAddresses();
-  if (!account) throw new Error("No wallet account available.");
-
-  const hash = await walletClient.writeContract({
+  const hash = await wc.writeContract({
+    chain: filecoinCalibration,
     account,
     address: params.contractAddress,
     abi: guardianRecoveryAbi,
     functionName: "startRecovery",
     args: [],
   });
-
   const receipt = await calibrationPublicClient.waitForTransactionReceipt({ hash });
   return { hash, receipt };
 }
@@ -190,24 +246,25 @@ export async function startRecoveryOnChain(params: {
 export async function approveRecoveryOnChain(params: {
   contractAddress: Address;
   owner: Address;
+  walletClient?: WalletClient;
+  account?: Address;
 }) {
-  const walletClient = getCalibrationWalletClient();
-  await (globalThis as any).ethereum.request({ method: "eth_requestAccounts" });
+  const wc = resolveWallet(params.walletClient);
+  const account = await resolveAccount(params.account, wc);
 
-  const [account] = await walletClient.getAddresses();
-  if (!account) throw new Error("No wallet account available.");
-
-  const hash = await walletClient.writeContract({
+  const hash = await wc.writeContract({
+    chain: filecoinCalibration,
     account,
     address: params.contractAddress,
     abi: guardianRecoveryAbi,
     functionName: "approveRecovery",
     args: [params.owner],
   });
-
   const receipt = await calibrationPublicClient.waitForTransactionReceipt({ hash });
   return { hash, receipt };
 }
+
+// ---- Read Functions ----
 
 export async function readRecoveryStatus(params: {
   contractAddress: Address;
@@ -253,13 +310,14 @@ export async function addEntryOnChain(params: {
   contractAddress: Address;
   uid: string;
   metadataJson: string;
+  walletClient?: WalletClient;
+  account?: Address;
 }) {
-  const walletClient = getCalibrationWalletClient();
-  await (globalThis as any).ethereum.request({ method: "eth_requestAccounts" });
-  const [account] = await walletClient.getAddresses();
-  if (!account) throw new Error("No wallet account available.");
+  const wc = resolveWallet(params.walletClient);
+  const account = await resolveAccount(params.account, wc);
 
-  const hash = await walletClient.writeContract({
+  const hash = await wc.writeContract({
+    chain: filecoinCalibration,
     account,
     address: params.contractAddress,
     abi: guardianRecoveryAbi,
@@ -274,13 +332,14 @@ export async function updateEntryOnChain(params: {
   contractAddress: Address;
   uid: string;
   metadataJson: string;
+  walletClient?: WalletClient;
+  account?: Address;
 }) {
-  const walletClient = getCalibrationWalletClient();
-  await (globalThis as any).ethereum.request({ method: "eth_requestAccounts" });
-  const [account] = await walletClient.getAddresses();
-  if (!account) throw new Error("No wallet account available.");
+  const wc = resolveWallet(params.walletClient);
+  const account = await resolveAccount(params.account, wc);
 
-  const hash = await walletClient.writeContract({
+  const hash = await wc.writeContract({
+    chain: filecoinCalibration,
     account,
     address: params.contractAddress,
     abi: guardianRecoveryAbi,
@@ -294,13 +353,14 @@ export async function updateEntryOnChain(params: {
 export async function removeEntryOnChain(params: {
   contractAddress: Address;
   uid: string;
+  walletClient?: WalletClient;
+  account?: Address;
 }) {
-  const walletClient = getCalibrationWalletClient();
-  await (globalThis as any).ethereum.request({ method: "eth_requestAccounts" });
-  const [account] = await walletClient.getAddresses();
-  if (!account) throw new Error("No wallet account available.");
+  const wc = resolveWallet(params.walletClient);
+  const account = await resolveAccount(params.account, wc);
 
-  const hash = await walletClient.writeContract({
+  const hash = await wc.writeContract({
+    chain: filecoinCalibration,
     account,
     address: params.contractAddress,
     abi: guardianRecoveryAbi,
@@ -360,4 +420,3 @@ export async function readIsVaultInitialized(params: {
     args: [params.owner],
   });
 }
-
