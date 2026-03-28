@@ -10,10 +10,13 @@ import { cn } from "@/lib/utils";
 import type { Address } from "viem";
 import { approveRecoveryOnChain, readRecoveryStatus, DEFAULT_GUARDIAN_CONTRACT } from "@/lib/guardian-recovery-contract";
 import { DEFAULT_LIT_CHAIN } from "@/lib/lit-recovery";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount, useWalletClient } from "wagmi";
 
 export default function GuardianRecoveryPage() {
   const [isVisible, setIsVisible] = useState(false);
-  const [contractAddress, setContractAddress] = useState(DEFAULT_GUARDIAN_CONTRACT as string);
+  const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [ownerAddress, setOwnerAddress] = useState("");
 
   const [status, setStatus] = useState<string>("");
@@ -28,8 +31,10 @@ export default function GuardianRecoveryPage() {
     try {
       if (!ownerAddress) throw new Error("Owner address required");
       const { hash } = await approveRecoveryOnChain({
-        contractAddress: contractAddress as Address,
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
         owner: ownerAddress as Address,
+        walletClient: walletClient ?? undefined,
+        account: address,
       });
       setStatus(`approveRecovery tx: ${hash}`);
     } catch (err) {
@@ -46,7 +51,7 @@ export default function GuardianRecoveryPage() {
     try {
       if (!ownerAddress) throw new Error("Owner address required");
       const s = await readRecoveryStatus({
-        contractAddress: contractAddress as Address,
+        contractAddress: DEFAULT_GUARDIAN_CONTRACT,
         owner: ownerAddress as Address,
       });
       setStatus(
@@ -77,6 +82,7 @@ export default function GuardianRecoveryPage() {
             <Link href="/recovery/owner" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Owner recovery
             </Link>
+            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
           </div>
         </div>
       </header>
@@ -100,36 +106,43 @@ export default function GuardianRecoveryPage() {
         </div>
 
         <div className="max-w-2xl space-y-6">
-          <Card className="border-foreground/10">
-            <CardHeader>
-              <CardTitle className="font-display text-2xl">Recovery contract</CardTitle>
-              <CardDescription>Filecoin Calibration. Chain: {DEFAULT_LIT_CHAIN}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Contract address</Label>
-                <Input className="font-mono" value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-mono">Owner address (who started recovery)</Label>
-                <Input className="font-mono" value={ownerAddress} onChange={(e) => setOwnerAddress(e.target.value)} placeholder="0x..." />
-              </div>
+          {!isConnected && (
+            <Card className="border-foreground/10">
+              <CardContent className="py-12 text-center space-y-4">
+                <p className="text-muted-foreground">Connect your guardian wallet to approve recovery requests.</p>
+                <ConnectButton />
+              </CardContent>
+            </Card>
+          )}
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button className="rounded-full" onClick={handleApprove} disabled={isApproving || !ownerAddress}>
-                  {isApproving ? "Approving…" : "approveRecovery(owner)"}
-                </Button>
-                <Button variant="outline" className="rounded-full" onClick={handleCheck} disabled={isChecking || !ownerAddress}>
-                  {isChecking ? "Checking…" : "Check status"}
-                </Button>
-              </div>
+          {isConnected && (
+            <Card className="border-foreground/10">
+              <CardHeader>
+                <CardTitle className="font-display text-2xl">Approve recovery</CardTitle>
+                <CardDescription>Filecoin Calibration. Chain: {DEFAULT_LIT_CHAIN}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-mono">Owner address (who started recovery)</Label>
+                  <Input className="font-mono" value={ownerAddress} onChange={(e) => setOwnerAddress(e.target.value)} placeholder="0x..." />
+                </div>
 
-              {status && <div className="text-sm text-muted-foreground font-mono break-all">{status}</div>}
-              <p className="text-xs text-muted-foreground">
-                Once approvals reach the threshold, Lit will allow the owner to decrypt the key.
-              </p>
-            </CardContent>
-          </Card>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button className="rounded-full" onClick={handleApprove} disabled={isApproving || !ownerAddress}>
+                    {isApproving ? "Approving…" : "Approve recovery"}
+                  </Button>
+                  <Button variant="outline" className="rounded-full" onClick={handleCheck} disabled={isChecking || !ownerAddress}>
+                    {isChecking ? "Checking…" : "Check status"}
+                  </Button>
+                </div>
+
+                {status && <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">{status}</div>}
+                <p className="text-xs text-muted-foreground">
+                  Once approvals reach the threshold, Lit will allow the owner to decrypt the key.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </main>
