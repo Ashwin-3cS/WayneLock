@@ -118,6 +118,60 @@ contract WayneLockGuardianRecovery {
         emit VaultRegistered(owner, ipfsCid, threshold, guardians[owner]);
     }
 
+    /**
+     * Register a vault AND add the first password entry in a single transaction.
+     * Saves one on-chain call for first-time users.
+     */
+    function registerVaultAndAddEntry(
+        string calldata ipfsCid,
+        address[] calldata newGuardians,
+        uint8 threshold,
+        string calldata uid,
+        string calldata metadataJson
+    ) external {
+        if (newGuardians.length == 0) revert InvalidGuardian();
+        if (threshold == 0 || threshold > newGuardians.length) revert InvalidThreshold();
+        if (bytes(uid).length == 0) revert EmptyUid();
+
+        address owner = msg.sender;
+
+        // Clear previous guardians mapping (if any)
+        address[] storage old = guardians[owner];
+        for (uint256 i = 0; i < old.length; i++) {
+            isGuardian[owner][old[i]] = false;
+        }
+        delete guardians[owner];
+
+        // Set new guardians with uniqueness checks
+        for (uint256 i = 0; i < newGuardians.length; i++) {
+            address g = newGuardians[i];
+            if (g == address(0) || g == owner) revert InvalidGuardian();
+            if (isGuardian[owner][g]) revert DuplicateGuardian();
+            isGuardian[owner][g] = true;
+            guardians[owner].push(g);
+        }
+
+        VaultConfig storage v = vaults[owner];
+        v.ipfsCid = ipfsCid;
+        v.threshold = threshold;
+        v.recoveryId = 0;
+        v.approvals = 0;
+        v.initialized = true;
+        v.recoveryActive = false;
+
+        // Add the first entry
+        if (entries[owner][uid].exists) revert EntryAlreadyExists();
+        entries[owner][uid] = PasswordEntry({
+            metadataJson: metadataJson,
+            createdAt: block.timestamp,
+            exists: true
+        });
+        entryUids[owner].push(uid);
+
+        emit VaultRegistered(owner, ipfsCid, threshold, guardians[owner]);
+        emit EntryAdded(owner, uid);
+    }
+
     /** Update the CID pointer for msg.sender. */
     function updateVaultCid(string calldata ipfsCid) external onlyInitialized(msg.sender) {
         vaults[msg.sender].ipfsCid = ipfsCid;
