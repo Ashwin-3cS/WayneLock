@@ -6,7 +6,7 @@ dotenv.config();
 
 const FILECOIN_CALIBRATION_RPC_URL =
   process.env.FILECOIN_CALIBRATION_RPC_URL ??
-  "https://filecoin-calibration.drpc.org";
+  "https://api.calibration.node.glif.io/rpc/v1";
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 
