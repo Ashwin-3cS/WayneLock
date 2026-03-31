@@ -12,6 +12,7 @@ import { DEFAULT_LIT_CHAIN } from "@/lib/lit-recovery";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWalletClient } from "wagmi";
 import { AppSiteHeader } from "@/components/app-site-header";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 const guardianRecoveryNavLinks = [
   { href: "/", label: "Home" },
@@ -22,6 +23,7 @@ const guardianRecoveryNavLinks = [
 
 export default function GuardianRecoveryPage() {
   const [isVisible, setIsVisible] = useState(false);
+  const hydrated = useHydrated();
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const [ownerAddress, setOwnerAddress] = useState("");
@@ -95,7 +97,7 @@ export default function GuardianRecoveryPage() {
         </div>
 
         <div className="max-w-2xl space-y-6">
-          {!isConnected && (
+          {(!hydrated || !isConnected) && (
             <Card className="border-foreground/10">
               <CardContent className="py-12 text-center space-y-4">
                 <p className="text-muted-foreground">Connect your guardian wallet to approve recovery requests.</p>
@@ -104,7 +106,7 @@ export default function GuardianRecoveryPage() {
             </Card>
           )}
 
-          {isConnected && (
+          {hydrated && isConnected && (
             <Card className="border-foreground/10">
               <CardHeader>
                 <CardTitle className="font-display text-2xl">Approve recovery</CardTitle>

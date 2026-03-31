@@ -20,6 +20,7 @@ import { fetchVaultBlob } from "@/lib/fwss";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWalletClient } from "wagmi";
 import { AppSiteHeader } from "@/components/app-site-header";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 const ownerRecoveryNavLinks = [
   { href: "/", label: "Home" },
@@ -37,6 +38,7 @@ interface RecoveryEntry {
 
 export default function OwnerRecoveryPage() {
   const [isVisible, setIsVisible] = useState(false);
+  const hydrated = useHydrated();
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
 
@@ -212,7 +214,7 @@ export default function OwnerRecoveryPage() {
         </div>
 
         <div className="max-w-3xl space-y-6">
-          {!isConnected && (
+          {(!hydrated || !isConnected) && (
             <Card className="border-foreground/10">
               <CardContent className="py-12 text-center space-y-4">
                 <p className="text-muted-foreground">Connect your wallet to start the recovery process.</p>
@@ -221,7 +223,7 @@ export default function OwnerRecoveryPage() {
             </Card>
           )}
 
-          {isConnected && (
+          {hydrated && isConnected && (
             <Card className="border-foreground/10">
               <CardHeader>
                 <CardTitle className="font-display text-2xl">Recovery actions</CardTitle>
@@ -244,7 +246,7 @@ export default function OwnerRecoveryPage() {
             </Card>
           )}
 
-          {entries.length > 0 && (
+          {hydrated && isConnected && entries.length > 0 && (
             <Card className="border-foreground/10">
               <CardHeader>
                 <CardTitle className="font-display text-2xl">Vault entries</CardTitle>

@@ -27,6 +27,7 @@ import { fetchVaultBlob } from "@/lib/fwss";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWalletClient } from "wagmi";
 import { AppSiteHeader } from "@/components/app-site-header";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 const vaultPageNavLinks = [
   { href: "/", label: "Home" },
@@ -43,6 +44,7 @@ interface EntryData {
 
 export default function VaultPage() {
   const [isVisible, setIsVisible] = useState(false);
+  const hydrated = useHydrated();
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const [entries, setEntries] = useState<EntryData[]>([]);
@@ -211,7 +213,7 @@ export default function VaultPage() {
         </div>
 
         <div className="max-w-3xl space-y-6">
-          {!isConnected && (
+          {(!hydrated || !isConnected) && (
             <Card className="border-foreground/10">
               <CardContent className="py-12 text-center space-y-4">
                 <p className="text-muted-foreground">Connect your wallet to view stored password entries.</p>
@@ -220,7 +222,7 @@ export default function VaultPage() {
             </Card>
           )}
 
-          {isConnected && isLoading && (
+          {hydrated && isConnected && isLoading && (
             <Card className="border-foreground/10">
               <CardContent className="py-12 text-center">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3" />
@@ -229,13 +231,13 @@ export default function VaultPage() {
             </Card>
           )}
 
-          {isConnected && statusMsg && !isLoading && (
+          {hydrated && isConnected && statusMsg && !isLoading && (
             <div className="text-sm text-foreground font-mono break-all bg-foreground/5 p-3 rounded-lg border border-foreground/10">
               {statusMsg}
             </div>
           )}
 
-          {isConnected && entries.length > 0 && (
+          {hydrated && isConnected && entries.length > 0 && (
             <Card className="border-foreground/10">
               <CardHeader>
                 <CardTitle className="font-display text-2xl">Stored entries</CardTitle>
@@ -320,7 +322,7 @@ export default function VaultPage() {
             </Card>
           )}
 
-          {isConnected && isVaultInit === false && !isLoading && (
+          {hydrated && isConnected && isVaultInit === false && !isLoading && (
             <Card className="border-foreground/10">
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground mb-4">No vault found for this address.</p>
