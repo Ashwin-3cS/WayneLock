@@ -1,0 +1,32 @@
+sequenceDiagram
+    actor Owner
+    actor Guardian1
+    actor Guardian2
+    participant Contract as WayneLockGuardianRecovery 2-of-3
+    participant Lit as Lit Protocol
+
+    Note over Owner,Lit: Phase 1 Owner initiates recovery
+    Owner->>Contract: startRecovery
+    Contract->>Contract: recoveryActive = true recoveryId++ approvals = 0
+
+    Note over Owner,Lit: Phase 2 Guardians approve within 5-min window
+    Guardian1->>Contract: approveRecovery ownerAddress
+    Contract->>Contract: approvals = 1 below threshold
+
+    Guardian2->>Contract: approveRecovery ownerAddress
+    Contract->>Contract: approvals = 2 meets threshold
+
+    Note over Owner,Lit: Phase 3 Owner decrypts via Lit
+    Owner->>Contract: isRecoveryApprovedForOwner
+    Contract-->>Owner: true
+
+    Owner->>Lit: litDecryptDek ciphertext hash ACC
+    Lit->>Contract: isRecoveryApprovedForOwner owner
+    Contract-->>Lit: true
+    Lit-->>Owner: DEK bytes released
+
+    Owner->>Owner: Decrypt all entries with DEK
+
+    Note over Owner,Lit: Phase 4 Finalize
+    Owner->>Contract: finalizeRecovery
+    Contract->>Contract: recoveryActive = false approvals reset

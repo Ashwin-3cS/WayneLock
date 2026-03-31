@@ -1,26 +1,44 @@
 import React from "react"
 import type { Metadata } from 'next'
-import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 import { Polyfills } from "./polyfills"
 import { Providers } from "./providers"
 
-const instrumentSans = Instrument_Sans({ 
-  subsets: ["latin"],
-  variable: '--font-instrument'
-});
+const instrumentSans = localFont({
+  src: [
+    { path: '../public/fonts/instrument-sans/InstrumentSans-400.ttf', weight: '400', style: 'normal' },
+    { path: '../public/fonts/instrument-sans/InstrumentSans-500.ttf', weight: '500', style: 'normal' },
+    { path: '../public/fonts/instrument-sans/InstrumentSans-600.ttf', weight: '600', style: 'normal' },
+    { path: '../public/fonts/instrument-sans/InstrumentSans-700.ttf', weight: '700', style: 'normal' },
+  ],
+  variable: '--font-instrument',
+  display: 'swap',
+})
 
-const instrumentSerif = Instrument_Serif({ 
-  subsets: ["latin"],
-  weight: "400",
-  variable: '--font-instrument-serif'
-});
+const instrumentSerif = localFont({
+  src: '../public/fonts/instrument-serif/InstrumentSerif-400.ttf',
+  weight: '400',
+  style: 'normal',
+  variable: '--font-instrument-serif',
+  display: 'swap',
+})
 
-const jetbrainsMono = JetBrains_Mono({ 
-  subsets: ["latin"],
-  variable: '--font-jetbrains'
-});
+const jetbrainsMono = localFont({
+  src: [
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-100.ttf', weight: '100', style: 'normal' },
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-200.ttf', weight: '200', style: 'normal' },
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-300.ttf', weight: '300', style: 'normal' },
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-400.ttf', weight: '400', style: 'normal' },
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-500.ttf', weight: '500', style: 'normal' },
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-600.ttf', weight: '600', style: 'normal' },
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-700.ttf', weight: '700', style: 'normal' },
+    { path: '../public/fonts/jetbrains-mono/JetBrainsMono-800.ttf', weight: '800', style: 'normal' },
+  ],
+  variable: '--font-jetbrains',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'WayneLock - Decentralized Password Vault',

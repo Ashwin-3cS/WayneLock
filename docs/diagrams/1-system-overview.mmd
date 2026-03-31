@@ -1,0 +1,89 @@
+graph TB
+    subgraph User["User (Browser)"]
+        RK["RainbowKit ConnectButton"]
+        MM["MetaMask / Wallet"]
+    end
+
+    subgraph Frontend["Next.js 16 Frontend"]
+        subgraph Pages
+            CREATE["/create - Generate & Store Password"]
+            VAULT["/vault - View & Retrieve Entries"]
+            OWNER["/recovery/owner - Start Recovery"]
+            GUARDIAN["/recovery/guardian - Guardian Approval"]
+        end
+
+        subgraph Providers["Providers"]
+            WAGMI["WagmiProvider"]
+            RKP["RainbowKitProvider"]
+            RQ["React Query"]
+        end
+
+        subgraph Libs["Client-Side Libraries"]
+            PASSGEN["password-generator.ts"]
+            ENCRYPT["password-encrypt.ts"]
+            LIT_LIB["lit-recovery.ts"]
+            FWSS["fwss.ts"]
+            SYNAPSE["synapse.ts"]
+            CONTRACT["guardian-recovery-contract.ts"]
+            DRAND_LIB["drand.ts"]
+            FUNDING["funding-ui.tsx"]
+        end
+    end
+
+    subgraph FilecoinCalibration["Filecoin Calibration Chain 314159"]
+        subgraph SmartContracts["Smart Contracts"]
+            GRC["WayneLockGuardianRecovery\n0x0d0e...4C55"]
+            FPAY["Filecoin Pay\n0x85e3...417C"]
+            USDFC["USDFC Token ERC-20\n0xb304...cDf0"]
+            SREG["Service Registry\n0x839e...Ac9D"]
+        end
+        subgraph FWSS_Storage["Filecoin Warm Storage FWSS"]
+            PDP["PDP Provider ID 2"]
+            PIECES["Piece Storage"]
+        end
+    end
+
+    subgraph LitNetwork["Lit Protocol naga-dev"]
+        LIT_NODES["Lit Nodes\nThreshold Encryption"]
+        ACC["Access Control Conditions\nisRecoveryApprovedForOwner"]
+    end
+
+    subgraph DrandNetwork["drand Beacon Network"]
+        DRAND["drand Nodes\napi.drand.sh\ndrand.cloudflare.com"]
+    end
+
+    User --> RK
+    RK --> WAGMI
+    MM --> WAGMI
+
+    CREATE --> PASSGEN
+    CREATE --> ENCRYPT
+    CREATE --> LIT_LIB
+    CREATE --> FWSS
+    CREATE --> CONTRACT
+    CREATE --> FUNDING
+    VAULT --> CONTRACT
+    VAULT --> FWSS
+    VAULT --> LIT_LIB
+    VAULT --> ENCRYPT
+    OWNER --> CONTRACT
+    OWNER --> FWSS
+    OWNER --> LIT_LIB
+    OWNER --> ENCRYPT
+    GUARDIAN --> CONTRACT
+
+    PASSGEN --> DRAND_LIB
+    DRAND_LIB --> DRAND
+    LIT_LIB --> LIT_NODES
+    FWSS --> SYNAPSE
+    SYNAPSE --> PDP
+    FWSS --> PIECES
+    CONTRACT --> GRC
+    FUNDING --> FPAY
+    FUNDING --> USDFC
+
+    LIT_NODES --> ACC
+    ACC -->|reads| GRC
+
+    FPAY -->|manages| USDFC
+    SREG -->|resolves| PDP

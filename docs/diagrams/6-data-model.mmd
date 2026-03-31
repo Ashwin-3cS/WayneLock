@@ -1,0 +1,35 @@
+erDiagram
+    OWNER ||--|| VAULT_CONFIG : has
+    OWNER ||--o{ PASSWORD_ENTRY : stores
+    OWNER ||--o{ GUARDIAN : protected_by
+    VAULT_CONFIG ||--o{ RECOVERY_SESSION : triggers
+
+    VAULT_CONFIG {
+        string ipfsCid
+        uint8 threshold
+        bool initialized
+        uint256 recoveryId
+        uint256 approvals
+        uint256 recoveryStart
+        bool recoveryActive
+    }
+
+    PASSWORD_ENTRY {
+        string uid
+        string metadataJson
+        uint256 createdAt
+        bool exists
+    }
+
+    GUARDIAN {
+        address walletAddress
+        bool isGuardian
+        uint256 approvedRecoveryId
+    }
+
+    RECOVERY_SESSION {
+        uint256 recoveryId
+        uint256 approvals
+        uint256 recoveryStart
+        bool active
+    }

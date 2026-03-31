@@ -1,0 +1,46 @@
+sequenceDiagram
+    actor User
+    participant Browser
+    participant drand as drand Beacon
+    participant Lit as Lit Protocol
+    participant FWSS as Filecoin Warm Storage
+    participant Contract as WayneLockGuardianRecovery
+    participant FPay as Filecoin Pay
+
+    Note over User,FPay: Step 0 - Fund Storage Rail
+    User->>FPay: depositAndApprove(amount)
+    FPay->>FPay: ERC-20 approve + deposit USDFC
+
+    Note over User,FPay: Step 1 - Generate Password
+    Browser->>Browser: crypto.getRandomValues 32 bytes
+    Browser->>drand: Fetch latest round R1
+    drand-->>Browser: R1 verified 32 bytes
+    Browser->>drand: Fetch previous round R2
+    drand-->>Browser: R2 verified 32 bytes
+    Browser->>Browser: HKDF then scrypt then LocalKey
+    Browser->>Browser: HKDF then scrypt then password_bytes
+    Browser->>Browser: Map to charset
+
+    Note over User,FPay: Step 2 - Encrypt Password
+    Browser->>Browser: Generate DEK 32 random bytes
+    Browser->>Browser: AES-GCM encrypt password with DEK
+    Browser->>Lit: litEncryptDek with accessConditions
+    Note right of Lit: ACC checks isRecoveryApprovedForOwner
+    Lit-->>Browser: litCiphertext + dataToEncryptHash
+
+    Note over User,FPay: Step 3 - Upload to Filecoin Wallet Popup 1
+    Browser->>FWSS: uploadVaultBlob encryptedBlob
+    FWSS->>FWSS: Pad to 127 bytes and calculate pieceCid
+    FWSS->>FWSS: uploadPiece then findPiece poll
+    User->>FWSS: createDataSetAndAddPieces MetaMask Sign
+    FWSS-->>Browser: pieceCid + serviceURL
+
+    Note over User,FPay: Step 4 - On-chain Registration Wallet Popup 2
+    Browser->>Browser: Build metadataJson
+    alt First time vault not initialized
+        User->>Contract: registerVaultAndAddEntry MetaMask Sign
+        Contract->>Contract: Set guardians + threshold + add entry
+    else Subsequent entries
+        User->>Contract: addEntry MetaMask Sign
+    end
+    Contract-->>Browser: tx hash confirmed

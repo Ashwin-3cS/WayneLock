@@ -1,0 +1,28 @@
+sequenceDiagram
+    actor User
+    participant Browser
+    participant Contract as WayneLockGuardianRecovery
+    participant FWSS as Filecoin Warm Storage
+    participant Lit as Lit Protocol
+
+    User->>Contract: getEntryUids owner
+    Contract-->>Browser: google facebook ssh-key
+
+    User->>Browser: Click Retrieve on google
+    Browser->>Contract: getEntry owner google
+    Contract-->>Browser: metadataJson createdAt exists
+    Browser->>Browser: Parse metadataJson
+
+    Browser->>FWSS: fetchVaultBlob pieceCid serviceURL
+    FWSS-->>Browser: encryptedBlob bytes
+
+    Browser->>Lit: litDecryptDek ciphertext hash ACC
+    Note right of Lit: Lit checks on-chain isRecoveryApprovedForOwner
+    alt Guardian threshold met
+        Lit-->>Browser: DEK bytes 32 bytes
+        Browser->>Browser: AES-GCM decrypt encryptedBlob with DEK
+        Browser-->>User: plaintext password
+    else Threshold NOT met
+        Lit-->>Browser: Error ACC not satisfied
+        Browser-->>User: Guardian approval needed
+    end
