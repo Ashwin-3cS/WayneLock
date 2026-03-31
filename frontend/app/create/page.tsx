@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,8 +23,15 @@ import type { Address } from "viem";
 import { FundingUI } from "@/components/funding-ui";
 import { uploadVaultBlob } from "@/lib/fwss";
 import { createSynapseWalletClient } from "@/lib/synapse";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWalletClient } from "wagmi";
+import { AppSiteHeader } from "@/components/app-site-header";
+
+const createPageNavLinks = [
+  { href: "/", label: "Home" },
+  { href: "/vault", label: "My vault" },
+  { href: "/recovery/owner", label: "Owner recovery" },
+  { href: "/recovery/guardian", label: "Guardian approval" },
+];
 
 const pipelineSteps = [
   { id: "entropy", label: "Device entropy", icon: Shield },
@@ -275,44 +281,7 @@ export default function CreatePage() {
         ))}
       </div>
 
-      {/* Header */}
-      <header className="relative z-20 border-b border-foreground/10 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
-          <Link
-            href="/"
-            className="font-display text-xl tracking-tight text-foreground hover:opacity-80 transition-opacity"
-          >
-            WayneLock
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Back to home
-            </Link>
-            <Link
-              href="/vault"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              My vault
-            </Link>
-            <Link
-              href="/recovery/owner"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Owner recovery
-            </Link>
-            <Link
-              href="/recovery/guardian"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Guardian approval
-            </Link>
-            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
-          </div>
-        </div>
-      </header>
+      <AppSiteHeader links={createPageNavLinks} />
 
       <div className="relative z-10 w-full px-6 lg:px-12 py-16 lg:py-24">
         <div className="flex flex-col lg:flex-row lg:items-start gap-12 lg:gap-16">

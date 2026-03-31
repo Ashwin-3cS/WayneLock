@@ -26,6 +26,13 @@ import type { Address } from "viem";
 import { fetchVaultBlob } from "@/lib/fwss";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWalletClient } from "wagmi";
+import { AppSiteHeader } from "@/components/app-site-header";
+
+const vaultPageNavLinks = [
+  { href: "/", label: "Home" },
+  { href: "/create", label: "Add entry" },
+  { href: "/recovery/owner", label: "Owner recovery" },
+];
 
 interface EntryData {
   uid: string;
@@ -183,25 +190,7 @@ export default function VaultPage() {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden noise-overlay">
-      <header className="relative z-20 border-b border-foreground/10 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
-          <Link href="/" className="font-display text-xl tracking-tight hover:opacity-80 transition-opacity">
-            WayneLock
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Home
-            </Link>
-            <Link href="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Add entry
-            </Link>
-            <Link href="/recovery/owner" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Recovery
-            </Link>
-            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
-          </div>
-        </div>
-      </header>
+      <AppSiteHeader links={vaultPageNavLinks} />
 
       <div className="relative z-10 w-full px-6 lg:px-12 py-16 lg:py-24">
         <div

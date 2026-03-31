@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +19,14 @@ import {
 import { fetchVaultBlob } from "@/lib/fwss";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, useWalletClient } from "wagmi";
+import { AppSiteHeader } from "@/components/app-site-header";
+
+const ownerRecoveryNavLinks = [
+  { href: "/", label: "Home" },
+  { href: "/vault", label: "My vault" },
+  { href: "/create", label: "Add entry" },
+  { href: "/recovery/guardian", label: "Guardian approval" },
+];
 
 interface RecoveryEntry {
   uid: string;
@@ -184,25 +191,7 @@ export default function OwnerRecoveryPage() {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden noise-overlay">
-      <header className="relative z-20 border-b border-foreground/10 bg-background/80 backdrop-blur-xl">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
-          <Link href="/" className="font-display text-xl tracking-tight hover:opacity-80 transition-opacity">
-            WayneLock
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/vault" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              My vault
-            </Link>
-            <Link href="/create" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Add entry
-            </Link>
-            <Link href="/recovery/guardian" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Guardian approval
-            </Link>
-            <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
-          </div>
-        </div>
-      </header>
+      <AppSiteHeader links={ownerRecoveryNavLinks} />
 
       <div className="relative z-10 w-full px-6 lg:px-12 py-16 lg:py-24">
         <div

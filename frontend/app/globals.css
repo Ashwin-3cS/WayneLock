@@ -93,6 +93,13 @@
   }
 }
 
+/* RainbowKit: pill connect / account control, same family as Instrument Sans stack */
+[data-rk] button[data-testid="rk-connect-button"],
+[data-rk] button[data-testid="rk-account-button"] {
+  border-radius: 9999px;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
 @layer utilities {
   .font-display {
     font-family: var(--font-display);

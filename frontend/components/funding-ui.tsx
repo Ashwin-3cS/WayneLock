@@ -74,7 +74,10 @@ export function FundingUI() {
             </CardHeader>
             <CardContent className="space-y-6">
                 {!address ? (
-                    <Button onClick={connectWallet} className="w-full rounded-full">
+                    <Button
+                        onClick={connectWallet}
+                        className="w-full h-11 rounded-full bg-foreground text-background text-sm font-medium hover:bg-foreground/90"
+                    >
                         Connect Wallet
                     </Button>
                 ) : (
