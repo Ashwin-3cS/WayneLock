@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, Coins, ArrowRight, Loader2 } from "lucide-react";
+import { Wallet, Coins, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function FundingUI() {
+export function FundingUI({ compact = false }: { compact?: boolean }) {
     const [balance, setBalance] = useState<string>("0");
     const [address, setAddress] = useState<`0x${string}` | null>(null);
     const [amount, setAmount] = useState<string>("2");
@@ -62,17 +63,26 @@ export function FundingUI() {
     };
 
     return (
-        <Card className="border-foreground/10 overflow-hidden w-full bg-foreground/[0.01]">
-            <CardHeader className="pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                    <Wallet className="w-5 h-5 text-muted-foreground" />
-                    <CardTitle className="text-xl font-display">Storage Funding (Filecoin Pay)</CardTitle>
+        <Card className={cn("border-foreground/10 overflow-hidden w-full bg-foreground/[0.01]", compact && "shadow-none")}>
+            <CardHeader className={cn(compact ? "pb-2 pt-4 px-5" : "pb-4")}>
+                <div className={cn("flex items-center gap-2", compact ? "mb-0" : "mb-2")}>
+                    <Wallet className={cn("text-muted-foreground shrink-0", compact ? "w-4 h-4" : "w-5 h-5")} />
+                    <CardTitle className={cn("font-display", compact ? "text-base" : "text-xl")}>
+                        Storage funding
+                    </CardTitle>
                 </div>
-                <CardDescription>
-                    Fund your decentralized storage rail with USDFC tokens.
-                </CardDescription>
+                {!compact && (
+                    <CardDescription>
+                        Fund your decentralized storage rail with USDFC tokens.
+                    </CardDescription>
+                )}
+                {compact && (
+                    <CardDescription className="text-xs mt-1">
+                        USDFC balance for Filecoin uploads via Synapse.
+                    </CardDescription>
+                )}
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className={cn(compact ? "space-y-4 px-5 pb-5" : "space-y-6")}>
                 {!address ? (
                     <Button
                         onClick={connectWallet}
@@ -82,7 +92,7 @@ export function FundingUI() {
                     </Button>
                 ) : (
                     <>
-                        <div className="flex justify-between items-center p-4 bg-background border border-foreground/10 rounded-lg">
+                        <div className={cn("flex justify-between items-center bg-background border border-foreground/10 rounded-lg", compact ? "p-3" : "p-4")}>
                             <div className="flex items-center gap-2">
                                 <Coins className="w-4 h-4 text-primary" />
                                 <span className="text-sm font-mono text-muted-foreground">Available USDFC</span>
@@ -121,8 +131,10 @@ export function FundingUI() {
                             </p>
                         )}
                         
-                        <p className="text-xs text-muted-foreground mt-4">
-                            Note: This balance acts as a streaming payment rail to your decentralized storage providers. You must have a positive balance to upload the vault.
+                        <p className={cn("text-xs text-muted-foreground", compact ? "mt-2" : "mt-4")}>
+                            {compact
+                                ? "Positive balance required before vault upload."
+                                : "Note: This balance acts as a streaming payment rail to your decentralized storage providers. You must have a positive balance to upload the vault."}
                         </p>
                     </>
                 )}

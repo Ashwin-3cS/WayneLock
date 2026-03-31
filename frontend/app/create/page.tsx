@@ -13,7 +13,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Copy, ArrowRight, Shield, Hash, Shuffle, KeyRound, Loader2 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Copy,
+  ArrowRight,
+  Shield,
+  Hash,
+  Shuffle,
+  KeyRound,
+  Loader2,
+  ChevronDown,
+  Lock,
+  HardDrive,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generatePassword } from "@/lib/password-generator";
 import { decryptBlobWithDek, encryptPasswordForLit } from "@/lib/password-encrypt";
@@ -68,6 +85,7 @@ export default function CreatePage() {
   const [decryptedPassword, setDecryptedPassword] = useState("");
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [evmContractConditions, setEvmContractConditions] = useState<any[] | null>(null);
+  const [payloadsOpen, setPayloadsOpen] = useState(false);
 
   useEffect(() => {
     setIsVisible(true);
@@ -231,6 +249,9 @@ export default function CreatePage() {
     }
   };
 
+  const hasEncryptedPayload =
+    Boolean(encryptedBlob || litCiphertext || litDataHash);
+
   const handleDecryptWithLit = async () => {
     if (!encryptedBlob || !litCiphertext || !litDataHash || !evmContractConditions) return;
     setIsDecrypting(true);
@@ -283,208 +304,113 @@ export default function CreatePage() {
 
       <AppSiteHeader links={createPageNavLinks} />
 
-      <div className="relative z-10 w-full px-6 lg:px-12 py-16 lg:py-24">
-        <div className="flex flex-col lg:flex-row lg:items-start gap-12 lg:gap-16">
-          {/* Left: Title, pipeline, note */}
-          <div className="min-w-0 lg:max-w-[580px]">
-            {/* Page title */}
-            <div
-              className={cn(
-                "mb-10 lg:mb-12 transition-all duration-700",
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-              )}
-            >
-              <span className="inline-flex items-center gap-3 text-sm font-mono text-muted-foreground mb-6">
-                <span className="w-8 h-px bg-foreground/30" />
-                Password generator
-              </span>
-              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-display tracking-tight mb-6">
-                Generate your password
-                <br />
-                <span className="text-muted-foreground">locally.</span>
-              </h1>
-              <p className="text-lg lg:text-xl text-muted-foreground max-w-xl leading-relaxed">
-                Your password is built on this device using device entropy, hashing methods, and verifiable randomness from drand. Nothing is sent to any server.
-              </p>
-            </div>
-
-            {/* Pipeline visual */}
-            <div
-              className={cn(
-                "mb-10 lg:mb-12 transition-all duration-700 delay-100",
-                isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-              )}
-            >
-              <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-6">
-                Generation pipeline
-              </p>
-              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3">
-                {pipelineSteps.map((step, index) => (
-                  <div key={step.id} className="flex items-center">
-                    <div
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-300 hover-lift",
-                        activeStep === index
-                          ? "border-foreground bg-foreground/5"
-                          : "border-foreground/10 bg-card"
-                      )}
-                    >
-                      <step.icon className="w-5 h-5 text-foreground/70 shrink-0" />
-                      <span className="font-mono text-sm">{step.label}</span>
-                    </div>
-                    {index < pipelineSteps.length - 1 && (
-                      <ArrowRight className="w-4 h-4 mx-2 text-foreground/20 hidden sm:block flex-shrink-0" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Footer note */}
-            <p
-              className={cn(
-                "text-sm text-muted-foreground max-w-xl transition-all duration-700 delay-300",
-                isVisible ? "opacity-100" : "opacity-0"
-              )}
-            >
-              <span className="font-mono text-foreground/70">Note:</span> R1 and R2 use verifiable randomness from the drand beacon network (latest and previous round).
+      <div className="relative z-10 w-full px-6 lg:px-10 py-10 lg:py-14">
+        <div
+          className={cn(
+            "mx-auto max-w-6xl transition-all duration-700",
+            isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+          )}
+        >
+          {/* Intro — compact */}
+          <header className="mb-8 lg:mb-10">
+            <span className="inline-flex items-center gap-3 text-xs font-mono text-muted-foreground mb-3">
+              <span className="w-6 h-px bg-foreground/30" />
+              Create vault entry
+            </span>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-display tracking-tight text-balance">
+              Generate locally,{" "}
+              <span className="text-muted-foreground">then store.</span>
+            </h1>
+            <p className="mt-3 text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
+              Entropy and drand on-device first; ciphertext and Filecoin upload follow in order below.
             </p>
+          </header>
+
+          {/* Step rail */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-8 text-[11px] sm:text-xs font-mono uppercase tracking-wider text-muted-foreground border-b border-foreground/10 pb-4">
+            <span className="inline-flex items-center gap-2 rounded-full border border-foreground/15 bg-background px-3 py-1 text-foreground">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] text-background">
+                1
+              </span>
+              Generate
+            </span>
+            <ArrowRight className="hidden sm:block w-3 h-3 opacity-40" />
+            <span
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-3 py-1",
+                hasEncryptedPayload
+                  ? "border-foreground/15 bg-background text-foreground"
+                  : "border-transparent opacity-70"
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-5 w-5 items-center justify-center rounded-full text-[10px]",
+                  hasEncryptedPayload
+                    ? "bg-foreground text-background"
+                    : "bg-foreground/10 text-muted-foreground"
+                )}
+              >
+                2
+              </span>
+              Encrypted
+            </span>
+            <ArrowRight className="hidden sm:block w-3 h-3 opacity-40" />
+            <span className="inline-flex items-center gap-2 rounded-full border border-transparent px-3 py-1 opacity-70">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground/10 text-[10px] text-muted-foreground">
+                3
+              </span>
+              Store
+            </span>
           </div>
 
-          {/* Right: Generator card - pushed to the very right */}
-          <div
-            className={cn(
-              "w-full lg:w-[460px] lg:min-w-[460px] lg:shrink-0 lg:ml-auto lg:sticky lg:top-28 transition-all duration-700 delay-200",
-              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-            )}
-          >
-            <Card className="border-foreground/10 shadow-sm overflow-hidden w-full">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-2xl font-display">Your password</CardTitle>
-                <CardDescription>
-                  Generated locally. Copy and store it securely.
+          <div className="grid gap-6 lg:grid-cols-2 lg:gap-8 items-start">
+            {/* —— Step 1: Generate —— */}
+            <Card className="border-foreground/10 shadow-sm overflow-hidden order-1">
+              <CardHeader className="space-y-1 pb-4 border-b border-foreground/5 bg-muted/20">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <KeyRound className="w-4 h-4 shrink-0" />
+                  <span className="text-[11px] font-mono uppercase tracking-widest">
+                    Step 1
+                  </span>
+                </div>
+                <CardTitle className="text-xl font-display">Password generation</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Configure length and character set, then generate. Nothing leaves your browser until you store.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8">
-                {/* Password output */}
-                <div className="flex gap-2">
-                  <Input
-                    readOnly
-                    value={password}
-                    className="font-mono text-lg h-14 bg-muted/50 border-foreground/10"
-                    placeholder="Click Generate to create a password"
-                  />
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-14 w-14 shrink-0 border-foreground/10"
-                    onClick={() => handleCopy(password, "password")}
-                    disabled={!password}
-                    aria-label="Copy password"
-                  >
-                    {copied === "password" ? (
-                      <span className="text-xs font-mono text-green-600">OK</span>
-                    ) : (
-                      <Copy className="w-5 h-5" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Encrypted output (Lit flow) */}
-                {(encryptedBlob || litCiphertext || litDataHash) && (
-                  <div className="space-y-4 p-4 rounded-lg border border-foreground/10 bg-muted/30">
-                    <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                      Encrypted output
-                    </p>
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs font-mono text-muted-foreground">Encrypted blob</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input
-                            readOnly
-                            value={encryptedBlob}
-                            className="font-mono text-xs h-10 bg-background border-foreground/10"
-                          />
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-10 w-10 shrink-0"
-                            onClick={() => handleCopy(encryptedBlob, "blob")}
-                            aria-label="Copy blob"
-                          >
-                            {copied === "blob" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs font-mono text-muted-foreground">Lit ciphertext (encrypted key)</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input
-                            readOnly
-                            value={litCiphertext}
-                            className="font-mono text-xs h-10 bg-background border-foreground/10"
-                          />
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-10 w-10 shrink-0"
-                            onClick={() => handleCopy(litCiphertext, "litCiphertext")}
-                            aria-label="Copy Lit ciphertext"
-                          >
-                            {copied === "litCiphertext" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
-                          </Button>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs font-mono text-muted-foreground">dataToEncryptHash</Label>
-                        <div className="flex gap-2 mt-1">
-                          <Input
-                            readOnly
-                            value={litDataHash}
-                            className="font-mono text-xs h-10 bg-background border-foreground/10"
-                          />
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-10 w-10 shrink-0"
-                            onClick={() => handleCopy(litDataHash, "litHash")}
-                            aria-label="Copy data hash"
-                          >
-                            {copied === "litHash" ? <span className="text-xs text-green-600">OK</span> : <Copy className="w-4 h-4" />}
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Lit releases the key only when access conditions pass (guardian contract threshold met).
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-3">
-                        <Button
-                          variant="outline"
-                          className="w-full h-11 rounded-full border-foreground/20"
-                          onClick={handleDecryptWithLit}
-                          disabled={isDecrypting || !litCiphertext || !litDataHash || !evmContractConditions}
+              <CardContent className="space-y-5 pt-5">
+                <div>
+                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
+                    Pipeline
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {pipelineSteps.map((step, index) => (
+                      <div key={step.id} className="flex items-center">
+                        <div
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition-colors",
+                            activeStep === index
+                              ? "border-foreground/40 bg-foreground/5"
+                              : "border-foreground/10 bg-card"
+                          )}
                         >
-                          {isDecrypting ? "Decrypting via Lit…" : "Test decrypt via Lit"}
-                        </Button>
-                        {decryptedPassword && (
-                          <div className="p-3 rounded-lg border border-foreground/10 bg-background">
-                            <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">
-                              Decrypted (demo)
-                            </p>
-                            <div className="font-mono text-sm break-all">{decryptedPassword}</div>
-                          </div>
+                          <step.icon className="w-3.5 h-3.5 text-foreground/60 shrink-0" />
+                          <span className="font-mono text-[11px] leading-none">{step.label}</span>
+                        </div>
+                        {index < pipelineSteps.length - 1 && (
+                          <ArrowRight className="w-3 h-3 mx-1 text-foreground/15 hidden sm:inline" />
                         )}
                       </div>
-                    </div>
+                    ))}
                   </div>
-                )}
+                </div>
 
-                {/* Length */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-sm font-mono">Length</Label>
-                    <span className="font-mono text-sm text-muted-foreground">
-                      {length[0]} characters
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center gap-2">
+                    <Label className="text-xs font-mono">Length</Label>
+                    <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                      {length[0]} chars
                     </span>
                   </div>
                   <Slider
@@ -497,105 +423,32 @@ export default function CreatePage() {
                   />
                 </div>
 
-                {/* Options */}
-                <div className="space-y-4">
-                  <Label className="text-sm font-mono">Character set</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <label className="flex items-center gap-3 p-4 rounded-lg border border-foreground/10 hover:border-foreground/20 transition-colors cursor-pointer">
-                      <Checkbox
-                        checked={uppercase}
-                        onCheckedChange={(v) => setUppercase(!!v)}
-                      />
-                      <span className="text-sm">Uppercase (A–Z)</span>
-                    </label>
-                    <label className="flex items-center gap-3 p-4 rounded-lg border border-foreground/10 hover:border-foreground/20 transition-colors cursor-pointer">
-                      <Checkbox
-                        checked={lowercase}
-                        onCheckedChange={(v) => setLowercase(!!v)}
-                      />
-                      <span className="text-sm">Lowercase (a–z)</span>
-                    </label>
-                    <label className="flex items-center gap-3 p-4 rounded-lg border border-foreground/10 hover:border-foreground/20 transition-colors cursor-pointer">
-                      <Checkbox
-                        checked={numbers}
-                        onCheckedChange={(v) => setNumbers(!!v)}
-                      />
-                      <span className="text-sm">Numbers (0–9)</span>
-                    </label>
-                    <label className="flex items-center gap-3 p-4 rounded-lg border border-foreground/10 hover:border-foreground/20 transition-colors cursor-pointer">
-                      <Checkbox
-                        checked={symbols}
-                        onCheckedChange={(v) => setSymbols(!!v)}
-                      />
-                      <span className="text-sm">Symbols (!@#$…)</span>
-                    </label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-mono">Character set</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { checked: uppercase, set: setUppercase, label: "A–Z" },
+                      { checked: lowercase, set: setLowercase, label: "a–z" },
+                      { checked: numbers, set: setNumbers, label: "0–9" },
+                      { checked: symbols, set: setSymbols, label: "Symbols" },
+                    ].map((row) => (
+                      <label
+                        key={row.label}
+                        className="flex items-center gap-2 rounded-lg border border-foreground/10 px-2.5 py-2 hover:border-foreground/20 transition-colors cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={row.checked}
+                          onCheckedChange={(v) => row.set(!!v)}
+                        />
+                        <span className="text-xs">{row.label}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
 
-                {/* Filecoin Storage Funding */}
-                <FundingUI />
-
-                {/* On-chain attestation (registerVault) */}
-                <div className="space-y-3 p-4 rounded-lg border border-foreground/10 bg-foreground/[0.01]">
-                  <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                    On-chain attestation
-                  </p>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-mono text-muted-foreground">Entry label (UID)</Label>
-                    <Input
-                      value={entryUid}
-                      onChange={(e) => setEntryUid(e.target.value)}
-                      className="font-mono text-xs h-10 bg-background border-foreground/10"
-                      placeholder="e.g. google, facebook, ssh-key"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      A unique label to identify this password in your vault.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-mono text-muted-foreground">Guardians (comma or newline separated)</Label>
-                    <Input
-                      value={guardiansInput}
-                      onChange={(e) => setGuardiansInput(e.target.value)}
-                      className="font-mono text-xs h-10 bg-background border-foreground/10"
-                      placeholder="0xabc..., 0xdef..., 0x123..."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-mono text-muted-foreground">Threshold</Label>
-                    <Input
-                      type="number"
-                      value={threshold}
-                      onChange={(e) => setThreshold(Number(e.target.value))}
-                      className="font-mono text-xs h-10 bg-background border-foreground/10"
-                      min={1}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Example: 3-of-5 guardians must approve for recovery.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full h-11 rounded-full border-foreground/20"
-                    onClick={handleRegisterVault}
-                    disabled={isRegistering || !encryptedBlob || !entryUid.trim() || !isConnected}
-                  >
-                    {isRegistering ? statusMsg || "Processing..." : vaultRegistered ? `Entry "${entryUid}" stored ✓` : "Upload to Filecoin & Store Entry"}
-                  </Button>
-                  {registerTx && (
-                    <p className="text-xs text-muted-foreground font-mono break-all text-green-600">
-                      success! tx: {registerTx}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Flow: upload encrypted blob to Filecoin Warm Storage via Synapse → register pieces → save piece metadata & guardians on-chain.
-                  </p>
-                </div>
-
-                {/* Generate CTA */}
                 <Button
                   size="lg"
-                  className="w-full h-14 text-base rounded-full bg-foreground text-background hover:bg-foreground/90 group"
+                  className="w-full h-11 sm:h-12 text-sm rounded-full bg-foreground text-background hover:bg-foreground/90 group"
                   onClick={handleGenerate}
                   disabled={isGenerating}
                 >
@@ -607,12 +460,267 @@ export default function CreatePage() {
                   ) : (
                     <>
                       Generate password
-                      <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
+                      <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-0.5" />
                     </>
                   )}
                 </Button>
+
+                <div className="space-y-2 pt-1">
+                  <Label className="text-xs font-mono text-muted-foreground">Output</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={password}
+                      className="font-mono text-sm h-11 bg-muted/40 border-foreground/10"
+                      placeholder="Generated password appears here"
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="h-11 w-11 shrink-0 border-foreground/10"
+                      onClick={() => handleCopy(password, "password")}
+                      disabled={!password}
+                      aria-label="Copy password"
+                    >
+                      {copied === "password" ? (
+                        <span className="text-[10px] font-mono text-green-600">OK</span>
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  <span className="font-mono text-foreground/70">Drand:</span> uses latest and previous beacon rounds for verifiable randomness.
+                </p>
               </CardContent>
             </Card>
+
+            {/* —— Column 2: Steps 2 & 3 —— */}
+            <div className="flex flex-col gap-6 order-2">
+              <Card className="border-foreground/10 shadow-sm overflow-hidden">
+                <CardHeader className="space-y-1 pb-3 border-b border-foreground/5 bg-muted/20">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Lock className="w-4 h-4 shrink-0" />
+                    <span className="text-[11px] font-mono uppercase tracking-widest">
+                      Step 2
+                    </span>
+                  </div>
+                  <CardTitle className="text-xl font-display">Encrypted payload</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Lit-wrapped key material after generation. Expand to copy full values.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-3">
+                  {!hasEncryptedPayload ? (
+                    <div className="rounded-xl border border-dashed border-foreground/15 bg-muted/20 px-4 py-8 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        Run <span className="font-mono text-foreground/80">Generate password</span>{" "}
+                        to produce the blob and Lit fields.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <div className="rounded-lg border border-foreground/10 bg-background px-3 py-2">
+                          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                            Blob
+                          </p>
+                          <p className="font-mono text-[11px] truncate mt-0.5" title={encryptedBlob}>
+                            {encryptedBlob ? `${encryptedBlob.slice(0, 18)}…` : "—"}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 mt-1 px-0 text-xs text-foreground/70"
+                            onClick={() => handleCopy(encryptedBlob, "blob")}
+                            disabled={!encryptedBlob}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                        <div className="rounded-lg border border-foreground/10 bg-background px-3 py-2">
+                          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                            Lit ciphertext
+                          </p>
+                          <p className="font-mono text-[11px] truncate mt-0.5" title={litCiphertext}>
+                            {litCiphertext ? `${litCiphertext.slice(0, 18)}…` : "—"}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 mt-1 px-0 text-xs text-foreground/70"
+                            onClick={() => handleCopy(litCiphertext, "litCiphertext")}
+                            disabled={!litCiphertext}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                        <div className="rounded-lg border border-foreground/10 bg-background px-3 py-2 sm:col-span-1">
+                          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                            Hash
+                          </p>
+                          <p className="font-mono text-[11px] truncate mt-0.5" title={litDataHash}>
+                            {litDataHash ? `${litDataHash.slice(0, 18)}…` : "—"}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 mt-1 px-0 text-xs text-foreground/70"
+                            onClick={() => handleCopy(litDataHash, "litHash")}
+                            disabled={!litDataHash}
+                          >
+                            Copy
+                          </Button>
+                        </div>
+                      </div>
+
+                      <Collapsible open={payloadsOpen} onOpenChange={setPayloadsOpen}>
+                        <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border border-foreground/10 bg-muted/30 px-3 py-2 text-left text-xs font-mono text-muted-foreground hover:bg-muted/50 transition-colors">
+                          <span>Full payloads &amp; demo decrypt</span>
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 shrink-0 transition-transform duration-200",
+                              payloadsOpen && "rotate-180"
+                            )}
+                          />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-3 pt-3 overflow-hidden">
+                          {[
+                            { label: "Encrypted blob", value: encryptedBlob, id: "blob" as const },
+                            { label: "Lit ciphertext", value: litCiphertext, id: "litCiphertext" as const },
+                            { label: "dataToEncryptHash", value: litDataHash, id: "litHash" as const },
+                          ].map((row) => (
+                            <div key={row.id}>
+                              <Label className="text-[10px] font-mono text-muted-foreground">{row.label}</Label>
+                              <div className="flex gap-1.5 mt-1">
+                                <Input
+                                  readOnly
+                                  value={row.value}
+                                  className="font-mono text-[11px] h-9 bg-background border-foreground/10"
+                                />
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-9 w-9 shrink-0"
+                                  onClick={() => handleCopy(row.value, row.id)}
+                                  aria-label={`Copy ${row.label}`}
+                                >
+                                  {copied === row.id ? (
+                                    <span className="text-[10px] text-green-600">OK</span>
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          <p className="text-[11px] text-muted-foreground">
+                            Lit releases the DEK when guardian contract conditions are satisfied.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full h-9 rounded-full border-foreground/20 text-xs"
+                            onClick={handleDecryptWithLit}
+                            disabled={isDecrypting || !litCiphertext || !litDataHash || !evmContractConditions}
+                          >
+                            {isDecrypting ? "Decrypting via Lit…" : "Test decrypt via Lit"}
+                          </Button>
+                          {decryptedPassword && (
+                            <div className="rounded-lg border border-foreground/10 bg-background p-3">
+                              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
+                                Decrypted (demo)
+                              </p>
+                              <p className="font-mono text-xs break-all">{decryptedPassword}</p>
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-foreground/10 shadow-sm overflow-hidden">
+                <CardHeader className="space-y-1 pb-3 border-b border-foreground/5 bg-muted/20">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <HardDrive className="w-4 h-4 shrink-0" />
+                    <span className="text-[11px] font-mono uppercase tracking-widest">
+                      Step 3
+                    </span>
+                  </div>
+                  <CardTitle className="text-xl font-display">Store &amp; attest</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Fund storage, then upload the encrypted blob and record metadata on-chain.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-5">
+                  <FundingUI compact />
+
+                  <div className="rounded-xl border border-foreground/10 bg-foreground/[0.02] p-4 space-y-4">
+                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                      On-chain attestation
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label className="text-[10px] font-mono text-muted-foreground">Entry label (UID)</Label>
+                        <Input
+                          value={entryUid}
+                          onChange={(e) => setEntryUid(e.target.value)}
+                          className="font-mono text-xs h-9 bg-background border-foreground/10"
+                          placeholder="e.g. google, ssh-key"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 space-y-1.5">
+                        <Label className="text-[10px] font-mono text-muted-foreground">Guardian addresses</Label>
+                        <Textarea
+                          value={guardiansInput}
+                          onChange={(e) => setGuardiansInput(e.target.value)}
+                          className="font-mono text-xs min-h-[72px] resize-y bg-background border-foreground/10"
+                          placeholder="0x…, one per line or comma-separated"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-mono text-muted-foreground">Threshold</Label>
+                        <Input
+                          type="number"
+                          value={threshold}
+                          onChange={(e) => setThreshold(Number(e.target.value))}
+                          className="font-mono text-xs h-9 bg-background border-foreground/10"
+                          min={1}
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      className="w-full h-11 rounded-full bg-foreground text-background text-sm hover:bg-foreground/90"
+                      onClick={handleRegisterVault}
+                      disabled={isRegistering || !encryptedBlob || !entryUid.trim() || !isConnected}
+                    >
+                      {isRegistering
+                        ? statusMsg || "Processing…"
+                        : vaultRegistered
+                          ? `Stored “${entryUid}” ✓`
+                          : "Upload to Filecoin & store entry"}
+                    </Button>
+                    {registerTx && (
+                      <p className="text-[11px] font-mono text-green-600 break-all">{registerTx}</p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Synapse upload → piece metadata + Lit fields written with your vault contract.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
