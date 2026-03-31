@@ -1,11 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { AnimatedSphere } from "./animated-sphere";
 
 const words = ["encrypt", "store", "recover", "trust"];
+
+type HeroMarqueeItem =
+  | { kind: "stat"; value: string; label: string; company: string }
+  | { kind: "logo"; src: string; alt: string; label: string; company: string };
+
+const heroMarqueeItems: readonly HeroMarqueeItem[] = [
+  { kind: "stat", value: "0", label: "passwords on our servers", company: "ZERO TRUST" },
+  {
+    kind: "logo",
+    src: "/filecoin-logo-symbol-only.png",
+    alt: "Filecoin",
+    label: "encrypted vault",
+    company: "IPFS + FILECOIN",
+  },
+  {
+    kind: "logo",
+    src: "/drand-logo.png",
+    alt: "drand",
+    label: "verifiable randomness",
+    company: "PASSWORD GEN",
+  },
+  {
+    kind: "logo",
+    src: "/png_thumbnail.webp",
+    alt: "Lit Protocol",
+    label: "programmable keys",
+    company: "KEY MANAGEMENT",
+  },
+];
 
 export function HeroSection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -145,15 +175,24 @@ export function HeroSection() {
       >
         <div className="flex gap-16 marquee whitespace-nowrap">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="flex gap-16">
-              {[
-                { value: "0", label: "passwords on our servers", company: "ZERO TRUST" },
-                { value: "E2E", label: "encrypted vault", company: "IPFS + FILECOIN" },
-                { value: "drand", label: "verifiable randomness", company: "PASSWORD GEN" },
-                { value: "Lit", label: "programmable keys", company: "KEY MANAGEMENT" },
-              ].map((stat) => (
-                <div key={`${stat.company}-${i}`} className="flex items-baseline gap-4">
-                  <span className="text-4xl lg:text-5xl font-display">{stat.value}</span>
+            <div key={i} className="flex gap-16 items-center">
+              {heroMarqueeItems.map((stat) => (
+                <div key={`${stat.company}-${i}`} className="flex items-center gap-4">
+                  {stat.kind === "logo" ? (
+                    <div className="relative h-[52px] w-[96px] lg:h-14 lg:w-[112px] shrink-0 flex items-center">
+                      <Image
+                        src={stat.src}
+                        alt={stat.alt}
+                        width={180}
+                        height={72}
+                        className="max-h-[52px] lg:max-h-14 w-auto max-w-[112px] lg:max-w-[128px] object-contain object-left opacity-95 dark:brightness-0 dark:invert"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-4xl lg:text-5xl font-display tabular-nums shrink-0">
+                      {stat.value}
+                    </span>
+                  )}
                   <span className="text-sm text-muted-foreground">
                     {stat.label}
                     <span className="block font-mono text-xs mt-1">{stat.company}</span>
