@@ -2,8 +2,91 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const connectOutlineClass =
+  "rounded-full border-foreground/20 bg-background font-sans font-medium shadow-xs hover:bg-foreground/5 hover:text-foreground";
+
+function LandingNavConnect({
+  className,
+  onOpenWallet,
+}: {
+  className?: string;
+  onOpenWallet?: () => void;
+}) {
+  return (
+    <ConnectButton.Custom>
+      {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+        const base = cn("border", connectOutlineClass, className);
+
+        if (!mounted) {
+          return (
+            <Button variant="outline" type="button" className={base} disabled aria-hidden>
+              Connect wallet
+            </Button>
+          );
+        }
+
+        if (!account) {
+          return (
+            <Button
+              type="button"
+              variant="outline"
+              className={base}
+              onClick={() => {
+                onOpenWallet?.();
+                openConnectModal();
+              }}
+            >
+              Connect wallet
+            </Button>
+          );
+        }
+
+        if (chain?.unsupported) {
+          return (
+            <Button
+              type="button"
+              variant="outline"
+              className={base}
+              onClick={() => {
+                onOpenWallet?.();
+                openChainModal();
+              }}
+            >
+              Wrong network
+            </Button>
+          );
+        }
+
+        return (
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(base, "gap-2 max-w-[200px]")}
+            onClick={() => {
+              onOpenWallet?.();
+              openAccountModal();
+            }}
+          >
+            {chain?.hasIcon && chain.iconUrl ? (
+              <span
+                className="size-4 shrink-0 rounded-full overflow-hidden"
+                style={{ background: chain.iconBackground }}
+              >
+                <img alt="" src={chain.iconUrl} width={16} height={16} className="size-4" />
+              </span>
+            ) : null}
+            <span className="truncate tabular-nums">{account.displayName}</span>
+          </Button>
+        );
+      }}
+    </ConnectButton.Custom>
+  );
+}
 
 const navLinks = [
   { name: "Features", href: "#features" },
@@ -65,13 +148,19 @@ export function Navigation() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <a href="#" className={`text-foreground/70 hover:text-foreground transition-all duration-500 ${isScrolled ? "text-xs" : "text-sm"}`}>
-              Sign in
-            </a>
+            <LandingNavConnect
+              className={cn(
+                "transition-all duration-500",
+                isScrolled ? "h-8 px-4 text-xs" : "h-10 px-6 text-sm"
+              )}
+            />
             <Button
               asChild
               size="sm"
-              className={`bg-foreground hover:bg-foreground/90 text-background rounded-full transition-all duration-500 ${isScrolled ? "px-4 h-8 text-xs" : "px-6"}`}
+              className={cn(
+                "rounded-full bg-foreground font-sans font-medium text-background hover:bg-foreground/90 transition-all duration-500",
+                isScrolled ? "h-8 px-4 text-xs" : "h-10 px-6 text-sm"
+              )}
             >
               <Link href="/create">Create vault</Link>
             </Button>
@@ -130,13 +219,12 @@ export function Navigation() {
           }`}
           style={{ transitionDelay: isMobileMenuOpen ? "300ms" : "0ms" }}
           >
-            <Button 
-              variant="outline" 
-              className="flex-1 rounded-full h-14 text-base"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Sign in
-            </Button>
+            <div className="flex-1 min-w-0">
+              <LandingNavConnect
+                className="w-full h-14 text-base rounded-full"
+                onOpenWallet={() => setIsMobileMenuOpen(false)}
+              />
+            </div>
             <Button 
               asChild
               className="flex-1 bg-foreground text-background rounded-full h-14 text-base"
