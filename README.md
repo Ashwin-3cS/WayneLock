@@ -34,11 +34,6 @@ It also enables **secure recovery** mechanisms (such as **threshold-based access
 
 ## Start here: architecture diagrams
 
-Before diving into code, read the diagrams under **[`docs/diagrams/`](docs/diagrams/)**. They are **[Mermaid](https://mermaid.js.org/)** source files (`.mmd`). You can preview them in:
-
-- **VS Code / Cursor** with a Mermaid extension, or  
-- **[Mermaid Live Editor](https://mermaid.live)** (paste the file contents), or  
-- Any Markdown viewer that renders Mermaid fenced blocks (you can paste into a `.md` file wrapped in ` ```mermaid ` … ` ``` `).
 
 Read them in this order:
 
